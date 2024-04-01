@@ -15,6 +15,7 @@ class StrategyAmethysts:
     def scratch_under_valued(self):
         # scratch any par or under-valued order
         orders: List[Order] = []
+        
         for bid_price, bid_amount in enumerate(self.bids):
             if bid_price >= self.FAIR_VALUE:
                 orders.append(Order(self.SYMBOL, bid_price, -bid_amount))
