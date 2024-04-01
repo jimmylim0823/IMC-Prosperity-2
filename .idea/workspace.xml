@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="First Trader.py">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="Update Logger">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tutorial.py" beforeDir="false" afterPath="$PROJECT_DIR$/tutorial.py" afterDir="false" />
     </list>
@@ -101,7 +101,31 @@
       <option name="project" value="LOCAL" />
       <updated>1711934497210</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Add Logger">
+      <option name="closed" value="true" />
+      <created>1711935548648</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1711935548648</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Update Logger">
+      <option name="closed" value="true" />
+      <created>1711936953981</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1711936953981</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Update Logger">
+      <option name="closed" value="true" />
+      <created>1711937949034</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1711937949034</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -119,6 +143,8 @@
     <MESSAGE value="Initialize" />
     <MESSAGE value="Initialize datamodel.py" />
     <MESSAGE value="First Trader.py" />
-    <option name="LAST_COMMIT_MESSAGE" value="First Trader.py" />
+    <MESSAGE value="Add Logger" />
+    <MESSAGE value="Update Logger" />
+    <option name="LAST_COMMIT_MESSAGE" value="Update Logger" />
   </component>
 </project>
