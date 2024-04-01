@@ -94,4 +94,6 @@ class Trader:
         result = {}
         traderData = "SAMPLE"
         conversions = 0
+
+        logger.flush(state, result, conversions, traderData)
         return result, conversions, traderData
