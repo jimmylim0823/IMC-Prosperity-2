@@ -84,16 +84,15 @@ class Logger:
 
         return compressed
 
-
 logger = Logger()
 
-
 class Trader:
-
-    def run(self, state: TradingState):
-        result = {}
-        traderData = "SAMPLE"
+    def run(self, state: TradingState) -> tuple[dict[Symbol, list[Order]], int, str]:
+        orders = {}
         conversions = 0
+        trader_data = ""
 
-        logger.flush(state, result, conversions, traderData)
-        return result, conversions, traderData
+        # TODO: Add logic
+
+        logger.flush(state, orders, conversions, trader_data)
+        return orders, conversions, trader_data
