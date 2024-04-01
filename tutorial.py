@@ -1,5 +1,5 @@
-from datamodel import OrderDepth, TradingState, Position, Order
-from typing import List
+from datamodel import OrderDepth, TradingState, Position, Order, Product
+from typing import List, Dict
 
 
 class StrategyAmethysts:
@@ -11,16 +11,18 @@ class StrategyAmethysts:
     """
 
     SYMBOL = "AMETHYSTS"
+    PRODUCT = "AMETHYSTS"
     FAIR_VALUE = 10000
     POSITION_LIMIT = 20
     SL_INVENTORY = 15  # acceptable inventory range
     SL_SPREAD = 2  # stop loss within this spread
     MM_SPREAD = 3  # market make with spread no smaller than this
 
-    def __init__(self, order_depth: OrderDepth, position: Position):
-        self.bids = order_depth.buy_orders
-        self.asks = order_depth.sell_orders
-        self.position = position
+    def __init__(self, state: TradingState):
+        self.order_depth = state.order_depths[self.SYMBOL] if self.SYMBOL in state.order_depths else {}
+        self.bids = self.order_depth.buy_orders if self.order_depth else {}
+        self.asks = self.order_depth.sell_orders if self.order_depth else {}
+        self.position = state.position[self.PRODUCT] if self.PRODUCT in state.position else 0
         self.best_bid = max(self.bids.keys())
         self.best_ask = min(self.asks.keys())
         self.expected_position = self.position  # expected position if all orders are filled
@@ -89,14 +91,13 @@ class StrategyAmethysts:
 
 
 class Trader:
-    @staticmethod
-    def run(state: TradingState):
+    def run(self, state: TradingState):
         result = {}
         conversions = 0
         traderData = "SAMPLE"
 
         # Symbol 1: AMETHYSTS (Fixed Fair Value Market Making)
-        strategy_amethysts = StrategyAmethysts(state.order_depths["AMETHYSTS"], state.position["AMETHYSTS"])
+        strategy_amethysts = StrategyAmethysts(state)
         result["AMETHYSTS"] = strategy_amethysts.aggregate_orders()
 
         return result, conversions, traderData

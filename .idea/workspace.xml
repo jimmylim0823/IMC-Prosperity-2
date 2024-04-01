@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="am scratch">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="am base mm strategy">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tutorial.py" beforeDir="false" afterPath="$PROJECT_DIR$/tutorial.py" afterDir="false" />
     </list>
@@ -165,7 +165,15 @@
       <option name="project" value="LOCAL" />
       <updated>1711945438397</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="am base mm strategy">
+      <option name="closed" value="true" />
+      <created>1711954569686</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1711954569686</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -187,6 +195,7 @@
     <MESSAGE value="Update Logger" />
     <MESSAGE value="am strategy" />
     <MESSAGE value="am scratch" />
-    <option name="LAST_COMMIT_MESSAGE" value="am scratch" />
+    <MESSAGE value="am base mm strategy" />
+    <option name="LAST_COMMIT_MESSAGE" value="am base mm strategy" />
   </component>
 </project>
