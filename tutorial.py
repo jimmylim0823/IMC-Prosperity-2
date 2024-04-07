@@ -75,8 +75,8 @@ class StrategyAmethysts:
         """
         bid_quantity = max(min(self.POSITION_LIMIT, self.POSITION_LIMIT - self.expected_position), 0)
         ask_quantity = min(max(-self.POSITION_LIMIT, -self.POSITION_LIMIT - self.expected_position), 0)
-        bid_price = max(self.FAIR_VALUE - self.MM_SPREAD, self.best_bid + 1)
-        ask_price = min(self.FAIR_VALUE + self.MM_SPREAD, self.best_ask - 1)
+        bid_price = self.FAIR_VALUE - self.MM_SPREAD
+        ask_price = self.FAIR_VALUE + self.MM_SPREAD
         self.orders.append(Order(self.SYMBOL, bid_price, bid_quantity))
         self.orders.append(Order(self.SYMBOL, ask_price, ask_quantity))
         print(f"Market Make Bid {bid_quantity} X @ {bid_price} Ask {ask_quantity} X @ {ask_quantity}")
