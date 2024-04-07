@@ -14,9 +14,9 @@ class StrategyAmethysts:
     PRODUCT = "AMETHYSTS"
     FAIR_VALUE = 10000
     POSITION_LIMIT = 20
-    SL_INVENTORY = 15  # acceptable inventory range
+    SL_INVENTORY = 0  # acceptable inventory range
     SL_SPREAD = 2  # stop loss within this spread
-    MM_SPREAD = 3  # market make with spread no smaller than this
+    MM_SPREAD = 4  # market make with spread no smaller than this
 
     def __init__(self, state: TradingState):
         self.order_depth = state.order_depths[self.SYMBOL] if self.SYMBOL in state.order_depths else {}
@@ -32,50 +32,54 @@ class StrategyAmethysts:
         """
         Scratch any under-valued or par-valued orders by aggressing against bots
         """
-        if self.position <= 0 and self.best_bid >= self.FAIR_VALUE:
+        # this opportunity only occurs for best bid and best ask
+        if self.position <= self.SL_INVENTORY and self.best_bid >= self.FAIR_VALUE:
             # trade (sell) against bots trying to buy too expensive
-            for price, quantity in enumerate(self.bids):
-                if price >= self.FAIR_VALUE and self.expected_position < -self.POSITION_LIMIT:
-                    order_quantity = min(max(-quantity, -self.POSITION_LIMIT - self.expected_position), 0)
-                    self.orders.append(Order(self.SYMBOL, price, order_quantity))
-                    self.expected_position += order_quantity
-        elif self.position >= 0 and self.best_ask <= self.FAIR_VALUE:
+            order_quantity = min(max(-self.bids[self.best_bid], -self.POSITION_LIMIT - self.expected_position), 0)
+            self.orders.append(Order(self.SYMBOL, self.best_bid, order_quantity))
+            self.expected_position += order_quantity
+            print(f"Scratch Sell {order_quantity} X @ {self.best_bid}")
+        elif self.position >= -self.SL_INVENTORY and self.best_ask <= self.FAIR_VALUE:
             # trade (buy) against bots trying to sell to cheap
-            for price, quantity in enumerate(self.asks):
-                if price >= self.FAIR_VALUE and self.expected_position > self.POSITION_LIMIT:
-                    order_quantity = max(min(-quantity, self.POSITION_LIMIT - self.expected_position), 0)
-                    self.orders.append(Order(self.SYMBOL, price, order_quantity))
-                    self.expected_position += order_quantity
+            order_quantity = max(min(-self.asks[self.best_ask], self.POSITION_LIMIT - self.expected_position), 0)
+            self.orders.append(Order(self.SYMBOL, self.best_ask, order_quantity))
+            self.expected_position += order_quantity
+            print(f"Scratch Buy {order_quantity} X @ {self.best_ask}")
+        else:
+            pass
 
     def stop_loss(self):
         """
         Stop loss when inventory over acceptable level
         """
         if self.position > self.SL_INVENTORY and self.best_bid >= self.FAIR_VALUE - self.SL_SPREAD:
-            # stop loss sell while in long position over acceptable inventory
+            # stop loss sell not too cheap when in long position over acceptable inventory
             for price, quantity in enumerate(self.bids):
                 if price >= self.FAIR_VALUE - self.SL_SPREAD and self.expected_position < -self.POSITION_LIMIT:
                     order_quantity = min(max(-quantity, -self.POSITION_LIMIT - self.expected_position), 0)
                     self.orders.append(Order(self.SYMBOL, price, order_quantity))
                     self.expected_position += order_quantity
+                    print(f"Stop Loss Sell {order_quantity} X @ {price}")
         elif self.position < -self.SL_INVENTORY and self.best_ask <= self.FAIR_VALUE + self.SL_SPREAD:
-            # stop loss buy while in short position over acceptable inventory
+            # stop loss buy not too expensive when in short position over acceptable inventory
             for price, quantity in enumerate(self.asks):
                 if price <= self.FAIR_VALUE + self.SL_SPREAD and self.expected_position > -self.POSITION_LIMIT:
                     order_quantity = max(min(-quantity, self.POSITION_LIMIT - self.expected_position), 0)
                     self.orders.append(Order(self.SYMBOL, price, order_quantity))
                     self.expected_position += order_quantity
+                    print(f"Stop Loss Buy {order_quantity} X @ {price}")
 
     def market_make(self):
         """
         Market make with fixed spread around fair value
         """
-        bid_quantity = max(self.POSITION_LIMIT - self.expected_position, 0)
-        ask_quantity = min(-self.POSITION_LIMIT - self.expected_position, 0)
-        bid_price = self.FAIR_VALUE - self.MM_SPREAD
-        ask_price = self.FAIR_VALUE + self.MM_SPREAD
+        bid_quantity = max(min(self.POSITION_LIMIT, self.POSITION_LIMIT - self.expected_position), 0)
+        ask_quantity = min(max(-self.POSITION_LIMIT, -self.POSITION_LIMIT - self.expected_position), 0)
+        bid_price = max(self.FAIR_VALUE - self.MM_SPREAD, self.best_bid + 1)
+        ask_price = min(self.FAIR_VALUE + self.MM_SPREAD, self.best_ask - 1)
         self.orders.append(Order(self.SYMBOL, bid_price, bid_quantity))
         self.orders.append(Order(self.SYMBOL, ask_price, ask_quantity))
+        print(f"Market Make Bid {bid_quantity} X @ {bid_price} Ask {ask_quantity} X @ {ask_quantity}")
 
     def aggregate_orders(self) -> List[Order]:
         """
