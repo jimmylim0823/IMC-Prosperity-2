@@ -14,8 +14,8 @@ class StrategyAmethysts:
     PRODUCT = "AMETHYSTS"
     FAIR_VALUE = 10000
     POSITION_LIMIT = 20
-    SL_INVENTORY = 15  # acceptable inventory range
-    SL_SPREAD = 2  # stop loss within this spread
+    SL_INVENTORY = 20  # acceptable inventory range
+    SL_SPREAD = 1  # stop loss within this spread
     MM_SPREAD = 2  # market make with spread no smaller than this
 
     def __init__(self, state: TradingState):
@@ -82,11 +82,11 @@ class StrategyAmethysts:
         bid_quantity = max(min(self.POSITION_LIMIT,
                                self.POSITION_LIMIT - self.position,
                                self.POSITION_LIMIT - self.expected_position,
-                               self.POSITION_LIMIT - self.sum_buy_qty), 0)
+                               self.POSITION_LIMIT - self.sum_buy_qty - self.position), 0)
         ask_quantity = min(max(-self.POSITION_LIMIT,
                                -self.POSITION_LIMIT - self.position,
                                -self.POSITION_LIMIT - self.expected_position,
-                               -self.POSITION_LIMIT - self.sum_sell_qty), 0)
+                               -self.POSITION_LIMIT - self.sum_sell_qty - self.position), 0)
         bid_price = self.FAIR_VALUE - self.MM_SPREAD
         ask_price = self.FAIR_VALUE + self.MM_SPREAD
         self.orders.append(Order(self.SYMBOL, bid_price, bid_quantity))
