@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="fixed all problems regarding stop loss">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="round_1 final">
+      <change afterPath="$PROJECT_DIR$/round_1.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/round1.py" beforeDir="false" afterPath="$PROJECT_DIR$/round1.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/round1.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -213,7 +214,31 @@
       <option name="project" value="LOCAL" />
       <updated>1712635715639</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="optimize parameter">
+      <option name="closed" value="true" />
+      <created>1712636945360</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1712636945360</updated>
+    </task>
+    <task id="LOCAL-00019" summary="prevent position exceeding">
+      <option name="closed" value="true" />
+      <created>1712686366921</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1712686366921</updated>
+    </task>
+    <task id="LOCAL-00020" summary="round_1 final">
+      <option name="closed" value="true" />
+      <created>1712807084745</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1712807084745</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -238,6 +263,9 @@
     <MESSAGE value="am base mm strategy" />
     <MESSAGE value="round 1" />
     <MESSAGE value="fixed all problems regarding stop loss" />
-    <option name="LAST_COMMIT_MESSAGE" value="fixed all problems regarding stop loss" />
+    <MESSAGE value="optimize parameter" />
+    <MESSAGE value="prevent position exceeding" />
+    <MESSAGE value="round_1 final" />
+    <option name="LAST_COMMIT_MESSAGE" value="round_1 final" />
   </component>
 </project>
