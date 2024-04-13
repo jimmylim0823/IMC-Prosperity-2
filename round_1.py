@@ -24,12 +24,6 @@ class StrategyMarketMaking:
         self.position_limit = position_limit  # max and min position limit
         self.fair_value = fair_value  # initial fair value given in the video
 
-        # strategy configuration
-        self.sl_inventory = sl_inventory  # acceptable inventory range
-        self.sl_spread = sl_spread  # acceptable spread to take for stop loss
-        self.mm_spread = mm_spread  # spread for market making
-        self.order_skew = order_skew  # extra skewing order quantity when market making
-
         # extract information from TradingState
         self.timestamp = state.timestamp
         self.bids = OrderedDict(state.order_depths[self.symbol].buy_orders)
@@ -37,6 +31,12 @@ class StrategyMarketMaking:
         self.position = state.position.get(self.product, 0)  # prevent KeyError if no position
         self.best_bid = max(self.bids.keys())
         self.best_ask = min(self.asks.keys())
+
+        # strategy configuration
+        self.sl_inventory = sl_inventory  # acceptable inventory range
+        self.sl_spread = sl_spread  # acceptable spread to take for stop loss
+        self.mm_spread = mm_spread  # spread for market making
+        self.order_skew = order_skew  # extra skewing order quantity when market making
 
         # initialize variables for orders
         self.orders: List[Order] = []  # append orders for this product here
