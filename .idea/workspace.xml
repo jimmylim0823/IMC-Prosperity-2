@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="round 2 minor change">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="saving previous data to traderData">
+      <change afterPath="$PROJECT_DIR$/trader_logger.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/round_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/round_2.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -277,7 +277,15 @@
       <option name="project" value="LOCAL" />
       <updated>1713103472183</updated>
     </task>
-    <option name="localTasksCounter" value="26" />
+    <task id="LOCAL-00026" summary="saving previous data to traderData">
+      <option name="closed" value="true" />
+      <created>1713111245742</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1713111245742</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -310,6 +318,7 @@
     <MESSAGE value="round 2" />
     <MESSAGE value="round 2 market making" />
     <MESSAGE value="round 2 minor change" />
-    <option name="LAST_COMMIT_MESSAGE" value="round 2 minor change" />
+    <MESSAGE value="saving previous data to traderData" />
+    <option name="LAST_COMMIT_MESSAGE" value="saving previous data to traderData" />
   </component>
 </project>
