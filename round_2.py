@@ -1,6 +1,6 @@
 import math
 import statistics
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from collections import deque, OrderedDict
 
 from datamodel import *
@@ -177,6 +177,7 @@ class OTCArbitrage(Strategy):
     def __init__(self, state: TradingState,
                  product_config: dict, strategy_config: dict):
         super().__init__(state, product_config)
+        self.unit_cost_storing = product_config['COST_STORING']
 
         # extract information from conversion observation
         self.observation = state.observations.conversionObservations[self.symbol]
@@ -185,45 +186,106 @@ class OTCArbitrage(Strategy):
         self.otc_mid = (self.otc_bid + self.otc_ask) / 2
         self.cost_import = self.observation.transportFees + self.observation.importTariff
         self.cost_export = self.observation.transportFees + self.observation.exportTariff
-        self.unit_cost_storing = product_config['STORING_COST']
+
         self.sunlight = self.observation.sunlight
         self.humidity = self.observation.humidity
 
         # define variables related to conversion
         self.fair_value = self.otc_mid  # initialize
-        self.conversions = 0
+        self.conversions = 0  # reset every timestamp
 
         # strategy configuration
-        self.exp_storage_time = strategy_config['EXP_STORAGE_TIME']
+        self.expected_storage_time = strategy_config['EXP_STORAGE_TIME']
+        self.effective_cost_export = self.cost_export + self.expected_storage_time * self.unit_cost_storing
+        self.min_edge = strategy_config['MIN_EDGE']
+        self.mm_edge = strategy_config['MM_EDGE']
 
     def calc_fair_value(self):
-        self.fair_value = self.otc_mid # temporary
+        self.fair_value = self.otc_mid  # temporary
 
-    def otc_exchange_arbitrage(self):
+    def arbitrage_exchange_enter(self):
         """
-        Exchange Long Arbitrage: take exchange best ask (buy) then take next otc best bid (sell)\n
-        Exchange Short Arbitrage: take exchange best bid (sell) then take next otc best ask (buy)\n
-        OTC Long Arbitrage: take otc best ask (buy) then take next exchange best bid (sell)\n
-        OTC Short Arbitrage: take otc best bid (sell) then take next exchange best ask (buy)
+        Long Arbitrage: take exchange best ask (buy) then take next otc bid (sell)\n
+        Short Arbitrage: take exchange best bid (sell) then take next otc ask (buy)\n
+        Note you pay export storing cost for long arb but only import cost for short arb
         """
-        cost_storing = self.unit_cost_storing * self.exp_storage_time
-        exc_long_arb__edge = self.otc_bid - self.best_ask - (self.cost_export + cost_storing)
-        exc_short_arb_edge = self.best_bid - self.otc_ask - self.cost_import
-        otc_long_arb_edge = self.best_bid - self.otc_ask - (self.cost_import + cost_storing)
-        otc_short_arb_edge = self.otc_bid - self.best_ask - self.cost_export
-        print(f"EL:{exc_long_arb__edge} ES:{exc_short_arb_edge} OL: {otc_long_arb_edge} OS: {otc_short_arb_edge}")
+        # calculate effective import and export cost then get arbitrage edge of each side
+        long_arb_edge = self.otc_bid - self.best_ask - self.effective_cost_export
+        short_arb_edge = self.best_bid - self.otc_ask - self.cost_import
 
-    def aggregate_orders(self) -> List[Order]:
+        edges = {"Long": long_arb_edge, "Short": short_arb_edge}
+        max_key = max(edges, key=lambda k: edges[k])  # choose best side
+        if max_key == "Long" and edges[max_key] >= self.min_edge:
+            for price, quantity in self.asks.items():
+                if self.otc_bid - price - self.effective_cost_export >= self.min_edge:
+                    order_quantity = max(min(-quantity,
+                                             self.position_limit - max(self.expected_position, 0)), 0)
+                    self.orders.append(Order(self.symbol, price, order_quantity))
+                    print(f"{max_key} Arbitrage {order_quantity} X @ {self.best_ask}")
+                    self.expected_position += order_quantity
+                    self.sum_buy_qty += order_quantity
+                else:
+                    break
+        elif max_key == "Short" and edges[max_key] >= self.min_edge:
+            for price, quantity in self.bids.items():
+                if price - self.otc_ask - self.cost_import >= self.min_edge:
+                    order_quantity = min(max(-self.bids[self.best_bid],
+                                             -self.position_limit - min(self.expected_position, 0)), 0)
+                    self.orders.append(Order(self.symbol, self.best_bid, order_quantity))
+                    print(f"{max_key} Arbitrage Enter {order_quantity} X @ {self.best_bid}")
+                    self.expected_position += order_quantity
+                    self.sum_sell_qty += order_quantity
+                else:
+                    break
+
+    def arbitrage_otc_exit(self):
+        """
+        Exit position from arbitrage strategy by converting position in otc
+        """
+        exit_quantity = -self.position  # need to change quantity if other strategy added
+        self.conversions += exit_quantity
+        if exit_quantity > 0:
+            print(f"Short Arbitrage Exit {exit_quantity} X @ {self.otc_ask}")
+        elif exit_quantity < 0:
+            print(f"Long Arbitrage Exit {exit_quantity} X @ {self.otc_bid}")
+
+    def market_make(self):
+        """
+        Bid low enough to take bid (sell) arbitrage-freely in otc considering cost\n
+        Ask high enough to take ask (buy) arbitrage-freely in otc considering cost
+        """
+        # for limit consider position, expected position and single-sided aggregate
+        bid_quantity = max(min(self.position_limit,
+                               self.position_limit - self.position,
+                               self.position_limit - self.expected_position,
+                               self.position_limit - self.sum_buy_qty - self.position), 0)
+        ask_quantity = min(max(-self.position_limit,
+                               -self.position_limit - self.position,
+                               -self.position_limit - self.expected_position,
+                               -self.position_limit - self.sum_sell_qty - self.position), 0)
+
+        # determine price for market making by adding edge to arbitrage free price
+        pricing_shift = self.fair_value - self.otc_mid
+        bid_arb_free = self.otc_bid - self.effective_cost_export
+        ask_arb_free = self.otc_ask + self.cost_import
+        bid_price = math.floor(bid_arb_free - self.mm_edge + pricing_shift)
+        ask_price = math.ceil(ask_arb_free + self.mm_edge + pricing_shift)
+        self.orders.append(Order(self.symbol, bid_price, bid_quantity))
+        self.orders.append(Order(self.symbol, ask_price, ask_quantity))
+        print(f"Market Make Bid {bid_quantity} X @ {bid_price} Ask {ask_quantity} X @ {ask_price}")
+
+    def aggregate_orders_conversions(self) -> Tuple[List[Order], int]:
         """
         Aggregate all orders from all sub strategies under OTC Arbitrage
 
         :rtype: List[Order]
         :return: List of orders generated for product
         """
-
         print(f"{self.symbol} Position {self.position}")
-        self.otc_exchange_arbitrage()
-        return self.orders
+        self.arbitrage_exchange_enter()
+        self.arbitrage_otc_exit()
+        self.market_make()
+        return self.orders, self.conversions
 
 
 class Trader:
@@ -237,7 +299,7 @@ class Trader:
                           'ORCHIDS': {'SYMBOL': 'ORCHIDS',
                                       'PRODUCT': 'ORCHIDS',
                                       'POSITION_LIMIT': 100,
-                                      'STORING_COST': 10}},
+                                      'COST_STORING': 0.1}},
               'STRATEGY': {'AMETHYSTS': {'FAIR_VALUE': 10000.0,
                                          'SL_INVENTORY': 20,
                                          'SL_SPREAD': 1,
@@ -248,7 +310,9 @@ class Trader:
                                          'SL_SPREAD': 1,
                                          'MM_SPREAD': 2,
                                          'ORDER_SKEW': 1.0},
-                           'ORCHIDS': {'EXP_STORAGE_TIME': 1}},
+                           'ORCHIDS': {'EXP_STORAGE_TIME': 1,
+                                       'MIN_EDGE': 1.5,
+                                       'MM_EDGE': 1.6}},
               'REGRESSION': {'STARFRUIT': {'MIN_WINDOW_SIZE': 5,
                                            'MAX_WINDOW_SIZE': 10,
                                            'PREDICT_SHIFT': 1}}}
@@ -289,6 +353,6 @@ class Trader:
         strategy_orchids = OTCArbitrage(state,
                                         self.config['PRODUCT']['ORCHIDS'],
                                         self.config['STRATEGY']['ORCHIDS'])
-        result["ORCHIDS"] = strategy_orchids.aggregate_orders()
+        result["ORCHIDS"], conversions = strategy_orchids.aggregate_orders_conversions()
 
         return result, conversions, traderData
