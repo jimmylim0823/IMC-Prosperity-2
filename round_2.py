@@ -1,7 +1,9 @@
 import math
 import statistics
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 from collections import deque, OrderedDict
+
+import jsonpickle
 
 from datamodel import *
 
@@ -131,7 +133,6 @@ class MarketMaking(Strategy):
         :rtype: List[Order]
         :return: List of orders generated for product
         """
-
         print(f"{self.symbol} Position {self.position}")
         self.scratch_under_valued()
         self.stop_loss()
@@ -141,11 +142,11 @@ class MarketMaking(Strategy):
 
 class LinearRegressionMM(MarketMaking):
     def __init__(self, state: TradingState,
-                 product_config: dict, strategy_config: dict, regression_config: dict):
+                 product_config: dict, strategy_config: dict):
         super().__init__(state, product_config, strategy_config)
-        self.min_window_size = regression_config['MIN_WINDOW_SIZE']
-        self.max_window_size = regression_config['MAX_WINDOW_SIZE']
-        self.predict_shift = regression_config['PREDICT_SHIFT']
+        self.min_window_size = strategy_config['MIN_WINDOW_SIZE']
+        self.max_window_size = strategy_config['MAX_WINDOW_SIZE']
+        self.predict_shift = strategy_config['PREDICT_SHIFT']
 
         # volume weighted average price (vwap) for bid, ask, and mid for de-noising
         self.bid_vwap = sum(p * q for p, q in self.bids.items()) / sum(self.bids.values())
@@ -173,6 +174,9 @@ class LinearRegressionMM(MarketMaking):
 class OTCArbitrage(Strategy):
     """
     Arbitrage Between OTC and Exchange comparing with estimated fair value
+    Sub-Strategy 1: Take orders from exchange which provide arbitrage opportunity
+    Sub-Strategy 2: Market make so that we secure margin over arbitrage free pricing
+    Sub-Strategy 3: Convert remaining position to exit arbitrage position
     """
     def __init__(self, state: TradingState,
                  product_config: dict, strategy_config: dict):
@@ -196,16 +200,19 @@ class OTCArbitrage(Strategy):
         # strategy configuration
         self.expected_storage_time = strategy_config['EXP_STORAGE_TIME']
         self.effective_cost_export = self.cost_export + self.expected_storage_time * self.unit_cost_storing
-        self.min_edge = strategy_config['MIN_EDGE']
-        self.mm_edge = strategy_config['MM_EDGE']
+        self.min_edge = strategy_config['MIN_EDGE']  # only try market taking arbitrage over this edge
+        self.mm_edge = strategy_config['MM_EDGE']  # edge added to arbitrage free pricing for market making
 
     def calc_fair_value(self):
+        """
+        Calculate fair value using factors influencing pricing of the product
+        """
         self.fair_value = self.otc_mid  # temporary
 
     def arbitrage_exchange_enter(self):
         """
-        Long Arbitrage: take exchange best ask (buy) then take next otc bid (sell)\n
-        Short Arbitrage: take exchange best bid (sell) then take next otc ask (buy)\n
+        Long Arbitrage: take exchange good ask (buy) then take next otc bid (sell)\n
+        Short Arbitrage: take exchange good bid (sell) then take next otc ask (buy)\n
         Note you pay export storing cost for long arb but only import cost for short arb
         """
         # calculate effective import and export cost then get arbitrage edge of each side
@@ -237,21 +244,10 @@ class OTCArbitrage(Strategy):
                 else:
                     break
 
-    def arbitrage_otc_exit(self):
-        """
-        Exit position from arbitrage strategy by converting position in otc
-        """
-        exit_quantity = -self.position  # need to change quantity if other strategy added
-        self.conversions += exit_quantity
-        if exit_quantity > 0:
-            print(f"Short Arbitrage Exit {exit_quantity} X @ {self.otc_ask}")
-        elif exit_quantity < 0:
-            print(f"Long Arbitrage Exit {exit_quantity} X @ {self.otc_bid}")
-
     def market_make(self):
         """
-        Bid low enough to take bid (sell) arbitrage-freely in otc considering cost\n
-        Ask high enough to take ask (buy) arbitrage-freely in otc considering cost
+        Make bid low enough to take bid (sell) arbitrage-freely in otc considering cost\n
+        Make ask high enough to take ask (buy) arbitrage-freely in otc considering cost
         """
         # for limit consider position, expected position and single-sided aggregate
         bid_quantity = max(min(self.position_limit,
@@ -273,6 +269,17 @@ class OTCArbitrage(Strategy):
         self.orders.append(Order(self.symbol, ask_price, ask_quantity))
         print(f"Market Make Bid {bid_quantity} X @ {bid_price} Ask {ask_quantity} X @ {ask_price}")
 
+    def arbitrage_otc_exit(self):
+        """
+        Exit position from arbitrage strategy by converting position in otc
+        """
+        exit_quantity = -self.position
+        self.conversions += exit_quantity
+        if exit_quantity > 0:
+            print(f"Short Arbitrage Exit {exit_quantity} X @ {self.otc_ask}")
+        elif exit_quantity < 0:
+            print(f"Long Arbitrage Exit {exit_quantity} X @ {self.otc_bid}")
+
     def aggregate_orders_conversions(self) -> Tuple[List[Order], int]:
         """
         Aggregate all orders from all sub strategies under OTC Arbitrage
@@ -282,12 +289,16 @@ class OTCArbitrage(Strategy):
         """
         print(f"{self.symbol} Position {self.position}")
         self.arbitrage_exchange_enter()
-        self.arbitrage_otc_exit()
         self.market_make()
+        self.arbitrage_otc_exit()
         return self.orders, self.conversions
 
 
 class Trader:
+    """
+    Class containing data and sending and receiving data with the trading server
+    """
+    symbols = ['AMETHYSTS', 'STARFRUIT', 'ORCHIDS']
     data = {'STARFRUIT': deque()}
     config = {'PRODUCT': {'AMETHYSTS': {'SYMBOL': 'AMETHYSTS',
                                         'PRODUCT': 'AMETHYSTS',
@@ -298,7 +309,8 @@ class Trader:
                           'ORCHIDS': {'SYMBOL': 'ORCHIDS',
                                       'PRODUCT': 'ORCHIDS',
                                       'POSITION_LIMIT': 100,
-                                      'COST_STORING': 0.1}},
+                                      'COST_STORING': 0.1}
+                          },
               'STRATEGY': {'AMETHYSTS': {'FAIR_VALUE': 10000.0,
                                          'SL_INVENTORY': 20,
                                          'SL_SPREAD': 1,
@@ -308,50 +320,69 @@ class Trader:
                                          'SL_INVENTORY': 10,
                                          'SL_SPREAD': 1,
                                          'MM_SPREAD': 2,
-                                         'ORDER_SKEW': 1.0},
+                                         'ORDER_SKEW': 1.0,
+                                         'MIN_WINDOW_SIZE': 5,
+                                         'MAX_WINDOW_SIZE': 10,
+                                         'PREDICT_SHIFT': 1
+                                         },
                            'ORCHIDS': {'EXP_STORAGE_TIME': 1,
                                        'MIN_EDGE': 1.5,
-                                       'MM_EDGE': 1.6}},
-              'REGRESSION': {'STARFRUIT': {'MIN_WINDOW_SIZE': 5,
-                                           'MAX_WINDOW_SIZE': 10,
-                                           'PREDICT_SHIFT': 1}}}
+                                       'MM_EDGE': 1.6}
+                           }
+              }
 
-    def data_starfruit(self, strategy: LinearRegressionMM):
+    def restore_data(self, timestamp, encoded_data):
+        if timestamp >= 100:
+            self.data = jsonpickle.decode(encoded_data)
+
+    def store_data(self, symbol: Symbol, value: Union[int, float], max_size: int = None):
         """
         Store new mid vwap data for Starfruit to class variable as queue
-
-        :param strategy: (LinearRegressionMM) Strategy class for Starfruit
+        :param symbol: (Symbol) Symbol of which data belongs to
+        :param value: (Union[int, float]) Value to be stored in data
+        :param max_size: (int) Maximum size of the array, default None
         """
-        mid_vwap = strategy.mid_vwap
-        while len(self.data[strategy.symbol]) >= strategy.max_window_size:
-            self.data[strategy.symbol].popleft()
-        self.data[strategy.symbol].append(mid_vwap)
+        if max_size:
+            while len(self.data[symbol]) >= max_size:
+                self.data[symbol].popleft()
+        self.data[symbol].append(value)
 
     def run(self, state: TradingState):
-        result = {}
-        conversions = 0
-        traderData = "SAMPLE"
+        """
+        Trading algorithm that will be iterated for every timestamp
+
+        :param state: (TradingState) State of each timestamp
+        :return: result, conversions, traderData: (Tuple[Tuple[Dict[Symbol, List[Order]], int, str]) \n
+        Results (dict of orders, conversion number, and data) of algorithms to send to the server
+        """
+        # restore data from traderData of last timestamp
+        self.restore_data(state.timestamp, state.traderData)
+
+        config_p = self.config['PRODUCT']
+        config_s = self.config['STRATEGY']
+
+        # aggregate orders in this result dictionary
+        result: Dict[Symbol, List[Order]] = {}
 
         # Round 1: AMETHYSTS and STARFRUIT (Market Making)
-        # Symbol 1: AMETHYSTS (Fixed Fair Value Market Making)
-        strategy_amethysts = MarketMaking(state,
-                                          self.config['PRODUCT']['AMETHYSTS'],
-                                          self.config['STRATEGY']['AMETHYSTS'])
-        result["AMETHYSTS"] = strategy_amethysts.aggregate_orders()
+        # Symbol 0: AMETHYSTS (Fixed Fair Value Market Making)
+        symbol = self.symbols[0]
+        fixed_mm = MarketMaking(state, config_p[symbol], config_s[symbol])
+        result[symbol] = fixed_mm.aggregate_orders()
 
-        # Symbol 2: STARFRUIT (Linear Regression Market Making)
-        strategy_starfruit = LinearRegressionMM(state,
-                                                self.config['PRODUCT']['STARFRUIT'],
-                                                self.config['STRATEGY']['STARFRUIT'],
-                                                self.config['REGRESSION']['STARFRUIT'])
-        self.data_starfruit(strategy_starfruit)  # update data
-        strategy_starfruit.predict_price(self.data['STARFRUIT'])  # update fair value
-        result["STARFRUIT"] = strategy_starfruit.aggregate_orders()
+        # Symbol 1: STARFRUIT (Linear Regression Market Making)
+        symbol = self.symbols[1]
+        lr_mm = LinearRegressionMM(state, config_p[symbol], config_s[symbol])
+        self.store_data(lr_mm.symbol, lr_mm.mid_vwap, lr_mm.max_window_size)  # update data
+        lr_mm.predict_price(self.data[symbol])  # update fair value
+        result[symbol] = lr_mm.aggregate_orders()
 
-        # Round 2: ORCHIDS (OTC-Exchange Arbitrage)
-        strategy_orchids = OTCArbitrage(state,
-                                        self.config['PRODUCT']['ORCHIDS'],
-                                        self.config['STRATEGY']['ORCHIDS'])
-        result["ORCHIDS"], conversions = strategy_orchids.aggregate_orders_conversions()
+        # Round 2: OTC-Exchange Arbitrage
+        # Symbol 2: ORCHIDS
+        symbol = self.symbols[2]
+        otc_arb = OTCArbitrage(state, config_p[symbol], config_s[symbol])
+        result[symbol], conversions = otc_arb.aggregate_orders_conversions()
 
+        # Save Data to traderData and pass to next timestamp
+        traderData = jsonpickle.encode(self.data)
         return result, conversions, traderData
