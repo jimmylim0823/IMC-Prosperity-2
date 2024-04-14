@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="round 2">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="round 2 market making">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/round_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/round_2.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -261,7 +260,15 @@
       <option name="project" value="LOCAL" />
       <updated>1713076247560</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="round 2 market making">
+      <option name="closed" value="true" />
+      <created>1713100345509</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1713100345509</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -292,6 +299,7 @@
     <MESSAGE value="update others" />
     <MESSAGE value="update" />
     <MESSAGE value="round 2" />
-    <option name="LAST_COMMIT_MESSAGE" value="round 2" />
+    <MESSAGE value="round 2 market making" />
+    <option name="LAST_COMMIT_MESSAGE" value="round 2 market making" />
   </component>
 </project>

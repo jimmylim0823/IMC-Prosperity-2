@@ -186,7 +186,6 @@ class OTCArbitrage(Strategy):
         self.otc_mid = (self.otc_bid + self.otc_ask) / 2
         self.cost_import = self.observation.transportFees + self.observation.importTariff
         self.cost_export = self.observation.transportFees + self.observation.exportTariff
-
         self.sunlight = self.observation.sunlight
         self.humidity = self.observation.humidity
 
