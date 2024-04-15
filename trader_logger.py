@@ -444,7 +444,15 @@ class Trader:
               }
 
     def restore_data(self, timestamp, encoded_data):
-        if timestamp >= 100:
+        """
+        Restore data by decoding traderData with jsonpickle if loss in data is found
+
+        :param timestamp: (int) current timestamp
+        :param encoded_data: (str) traderData from previous timestamp encoded with jsonpickle
+        """
+        data_loss = any([bool(v) for v in self.data.values()])
+        # restore only if any empty data except 0 timestamp
+        if timestamp >= 100 and data_loss:
             self.data = jsonpickle.decode(encoded_data)
 
     def store_data(self, symbol: Symbol, value: Union[int, float], max_size: int = None):
