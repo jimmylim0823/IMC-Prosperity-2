@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="logger">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="restore data">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/round_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/round_2.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trader_logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/trader_logger.py" afterDir="false" />
@@ -294,7 +294,15 @@
       <option name="project" value="LOCAL" />
       <updated>1713112610246</updated>
     </task>
-    <option name="localTasksCounter" value="28" />
+    <task id="LOCAL-00028" summary="restore data">
+      <option name="closed" value="true" />
+      <created>1713142366468</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1713142366468</updated>
+    </task>
+    <option name="localTasksCounter" value="29" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -329,6 +337,7 @@
     <MESSAGE value="round 2 minor change" />
     <MESSAGE value="saving previous data to traderData" />
     <MESSAGE value="logger" />
-    <option name="LAST_COMMIT_MESSAGE" value="logger" />
+    <MESSAGE value="restore data" />
+    <option name="LAST_COMMIT_MESSAGE" value="restore data" />
   </component>
 </project>

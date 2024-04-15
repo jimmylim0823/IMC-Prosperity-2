@@ -299,14 +299,12 @@ class OTCArbitrage(Strategy):
         self.observation = state.observations.conversionObservations[self.symbol]
         self.otc_bid = self.observation.bidPrice
         self.otc_ask = self.observation.askPrice
-        self.otc_mid = (self.otc_bid + self.otc_ask) / 2
         self.cost_import = self.observation.transportFees + self.observation.importTariff
         self.cost_export = self.observation.transportFees + self.observation.exportTariff
         self.sunlight = self.observation.sunlight
         self.humidity = self.observation.humidity
 
-        # define variables related to conversion
-        self.fair_value = self.otc_mid  # initialize
+        # initialize variables for conversions
         self.conversions = 0  # reset every timestamp
 
         # strategy configuration
@@ -314,12 +312,6 @@ class OTCArbitrage(Strategy):
         self.effective_cost_export = self.cost_export + self.expected_storage_time * self.unit_cost_storing
         self.min_edge = strategy_config['MIN_EDGE']  # only try market taking arbitrage over this edge
         self.mm_edge = strategy_config['MM_EDGE']  # edge added to arbitrage free pricing for market making
-
-    def calc_fair_value(self):
-        """
-        Calculate fair value using factors influencing pricing of the product
-        """
-        self.fair_value = self.otc_mid  # temporary
 
     def arbitrage_exchange_enter(self):
         """
@@ -372,11 +364,10 @@ class OTCArbitrage(Strategy):
                                -self.position_limit - self.sum_sell_qty - self.position), 0)
 
         # determine price for market making by adding edge to arbitrage free price
-        pricing_shift = self.fair_value - self.otc_mid
         bid_arb_free = self.otc_bid - self.effective_cost_export
         ask_arb_free = self.otc_ask + self.cost_import
-        bid_price = math.floor(bid_arb_free - self.mm_edge + pricing_shift)
-        ask_price = math.ceil(ask_arb_free + self.mm_edge + pricing_shift)
+        bid_price = math.floor(bid_arb_free - self.mm_edge)
+        ask_price = math.ceil(ask_arb_free + self.mm_edge)
         self.orders.append(Order(self.symbol, bid_price, bid_quantity))
         self.orders.append(Order(self.symbol, ask_price, ask_quantity))
         logger.print(f"Market Make Bid {bid_quantity} X @ {bid_price} Ask {ask_quantity} X @ {ask_price}")
@@ -385,12 +376,11 @@ class OTCArbitrage(Strategy):
         """
         Exit position from arbitrage strategy by converting position in otc
         """
-        exit_quantity = -self.position
-        self.conversions += exit_quantity
-        if exit_quantity > 0:
-            logger.print(f"Short Arbitrage Exit {exit_quantity} X @ {self.otc_ask}")
-        elif exit_quantity < 0:
-            logger.print(f"Long Arbitrage Exit {exit_quantity} X @ {self.otc_bid}")
+        self.conversions = -self.position
+        if self.conversions > 0:
+            logger.print(f"Short Arbitrage Exit {self.conversions} X @ {self.otc_ask}")
+        elif self.conversions < 0:
+            logger.print(f"Long Arbitrage Exit {self.conversions} X @ {self.otc_bid}")
 
     def aggregate_orders_conversions(self) -> Tuple[List[Order], int]:
         """
