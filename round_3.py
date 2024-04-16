@@ -1,6 +1,6 @@
 import math
 import statistics
-from typing import List, Dict, Tuple, Union
+from typing import List, Tuple, Dict, Any
 from collections import deque, OrderedDict
 
 import jsonpickle
@@ -36,14 +36,14 @@ class Strategy:
         self.bid_sweep = sum(p * q for p, q in self.bids.items())  # amount needed to sweep all bids
         self.ask_sweep = sum(p * q for p, q in self.asks.items())
         self.bid_vwap = self.bid_sweep / self.bid_volume  # volume weighted average price (vwap) of bids
-        self.ask_vwap = self.ask_sweep / self.bid_volume
+        self.ask_vwap = self.ask_sweep / self.ask_volume
         self.mid_vwap = (self.bid_vwap + self.ask_vwap) / 2  # de-noised mid-price
 
         # initialize variables for orders
         self.orders: List[Order] = []  # append orders for this product here
         self.expected_position = self.position  # expected position after market taking
         self.sum_buy_qty = 0  # check whether if buy order exceeds limit
-        self.sum_sell_qty = 0  # check whether if buy order exceeds limit
+        self.sum_sell_qty = 0
 
 
 class MarketMaking(Strategy):
@@ -298,27 +298,100 @@ class OTCArbitrage(Strategy):
 
 
 class BasketTrading:
-    def __init__(self, state: TradingState,
-                 basket_config: dict, constituent_config: List[dict], strategy_config: dict):
+    """
+    Statistical arbitrage between basket and its constituents
+    """
+    def __init__(self, state: TradingState, signal_state: dict,
+                 basket_config: dict, constituent_config: Dict[Symbol, dict], strategy_config: dict):
         # initialize basket and each constituent as Strategy Object
         self.basket = Strategy(state, basket_config)
-        self.constituent = [Strategy(state, product_config) for product_config in constituent_config]
-        self.constituent_symbols = [s.symbol for s in self.constituent]
+        self.constituent = {symbol: Strategy(state, config) for symbol, config in constituent_config.items()}
+
+        # configure basket information
+        self.c_symbols = list(self.constituent.keys())
+        self.c_ratios = {symbol: config['PER_BASKET'] for symbol, config in constituent_config.items()}
+        self.c_limits = {symbol: strategy.position_limit for symbol, strategy in self.constituent.items()}
+        self.c_mid_vwap = {symbol: strategy.mid_vwap for symbol, strategy in self.constituent.items()}
+        self.c_positions = {symbol: strategy.position for symbol, strategy in self.constituent.items()}
+        self.basket_limit = math.ceil(min(self.c_limits[symbol] / self.c_ratios[symbol] for symbol in self.c_symbols))
+        self.basket_limit = min(self.basket_limit, self.basket.position_limit)  # max basket constituent pairs
 
         # strategy configuration
-        self.premium_mean = strategy_config['PREMIUM_MEAN']
-        self.premium_std = strategy_config['PREMIUM_STD']
+        self.premium_mean = strategy_config['PREMIUM_MEAN']  # long-term mean premium of basket over constituents
+        self.premium_std = strategy_config['PREMIUM_STD']  # long-term standard deviation of premium
+        self.signal_level = strategy_config['SIGNAL_LEVEL']  # entry point of trading signal
+
+        # signal state data
+        self.signal_state = signal_state  # 0 for non-active, non-zero as position of basket
+
+        # build basket features
+        self.basket_nav = sum(self.c_ratios[symbol] * self.c_mid_vwap[symbol] for symbol in self.c_symbols)
+        self.premium = self.basket.mid_vwap - self.basket_nav  # basket - constituent net asset value
+        self.z_score = (self.premium - self.premium_mean) / self.premium_std  # z-score of premium
+
+    def signal_trading(self):
+        """
+        Trade with mean-reverting signal based on z-score of premium
+        """
+        if self.z_score > self.signal_level['3'] and not self.signal_state['3']:
+            self.signal_state['3'] = 1
+            print("Signal 3 Enter")
+
+        elif self.z_score > self.signal_level['2']:
+            if self.signal_state['3']:
+                self.signal_state['3'] = 0
+                print("Signal 3 Exit")
+            elif not self.signal_state['2']:
+                self.signal_state['2'] = 1
+                print("Signal 2 Enter")
+
+        elif self.z_score > self.signal_level['1']:
+            if self.signal_state['2']:
+                self.signal_state['2'] = 0
+                print("Signal 2 Exit")
+            elif not self.signal_state['1']:
+                self.signal_state['1'] = 1
+                print("Signal 1 Enter")
+
+        elif self.z_score > self.signal_level['0'] and self.signal_state['-1']:
+            self.signal_state['-1'] = 0
+            print("Signal -1 Exit")
+
+        elif self.z_score < self.signal_level['0'] and self.signal_state['1']:
+            self.signal_state['1'] = 0
+            print("Signal 1 Exit")
+
+        elif self.z_score < self.signal_level['-1']:
+            if self.signal_state['-2']:
+                self.signal_state['-2'] = 0
+                print("Signal -2 Exit")
+            elif not self.signal_state['-1']:
+                self.signal_state['-1'] = 1
+                print("Signal -1 Enter")
+
+        elif self.z_score < self.signal_level['-2']:
+            if self.signal_state['-3']:
+                self.signal_state['-3'] = 0
+                print("Signal -3 Exit")
+            elif not self.signal_state['-2']:
+                self.signal_state['-2'] = 1
+                print("Signal -2 Enter")
+
+        elif self.z_score < self.signal_level['-3'] and not self.signal_state['-3']:
+            self.signal_state['-3'] = 1
+            print("Signal -3 Exit")
 
 
 class Trader:
     """
     Class containing data and sending and receiving data with the trading server
     """
-    symbols = ['AMETHYSTS', 'STARFRUIT',  # Round 1
+    symbols: List[Symbol] = ['AMETHYSTS', 'STARFRUIT',  # Round 1
                'ORCHIDS',  # Round 2
                'GIFT_BASKET', 'CHOCOLATE', 'STRAWBERRIES', 'ROSES'  # Round 3
                ]
-    data = {'STARFRUIT': deque()}
+    data = {'STARFRUIT': deque(),
+            'GIFT_BASKET': {str(i): 0 for i in range(-3, 4)}}
     config = {'PRODUCT': {'AMETHYSTS': {'SYMBOL': 'AMETHYSTS',
                                         'PRODUCT': 'AMETHYSTS',
                                         'POSITION_LIMIT': 20},
@@ -335,15 +408,15 @@ class Trader:
                           'CHOCOLATE': {'SYMBOL': 'CHOCOLATE',
                                         'PRODUCT': 'CHOCOLATE',
                                         'POSITION_LIMIT': 250,
-                                        'UNIT_PER_BASKET': 4},
+                                        'PER_BASKET': 4},
                           'STRAWBERRIES': {'SYMBOL': 'STRAWBERRIES',
                                            'PRODUCT': 'STRAWBERRIES',
                                            'POSITION_LIMIT': 350,
-                                           'UNIT_PER_BASKET': 6},
+                                           'PER_BASKET': 6},
                           'ROSES': {'SYMBOL': 'ROSES',
                                     'PRODUCT': 'ROSES',
                                     'POSITION_LIMIT': 60,
-                                    'UNIT_PER_BASKET': 1},
+                                    'PER_BASKET': 1},
                           },
               'STRATEGY': {'AMETHYSTS': {'FAIR_VALUE': 10000.0,
                                          'SL_INVENTORY': 20,
@@ -363,7 +436,8 @@ class Trader:
                                        'MIN_EDGE': 1.0,
                                        'MM_EDGE': 1.5},
                            'GIFT_BASKET': {'PREMIUM_MEAN': 385.0,
-                                           'PREMIUM_STD': 75.0}
+                                           'PREMIUM_STD': 75.0,
+                                           'SIGNAL_LEVEL': {str(i): 0.5 * i for i in range(-3, 4)}}
                            }
               }
 
@@ -379,11 +453,11 @@ class Trader:
         if timestamp >= 100 and data_loss:
             self.data = jsonpickle.decode(encoded_data)
 
-    def store_data(self, symbol: Symbol, value: Union[int, float], max_size: int = None):
+    def store_data(self, symbol: Symbol, value: Any, max_size: int = None):
         """
         Store new mid vwap data for Starfruit to class variable as queue
         :param symbol: (Symbol) Symbol of which data belongs to
-        :param value: (Union[int, float]) Value to be stored in data
+        :param value: (Any) Value to be stored in data
         :param max_size: (int) Maximum size of the array, default None
         """
         if max_size:
@@ -432,8 +506,10 @@ class Trader:
         # Symbol 3: GIFT_BASKET, 4 ~ 6: CHOCOLATE, STRAWBERRIES, ROSES
         symbol_basket = self.symbols[3]
         symbols_constituent = [self.symbols[i] for i in range(4, 7)]
-        basket_trading = BasketTrading(state, config_p[symbol_basket],
-                                       [config_p[s] for s in symbols_constituent], config_s[symbol_basket])
+        basket_trading = BasketTrading(state, self.data[symbol_basket], config_p[symbol_basket],
+                                       {s: config_p[s] for s in symbols_constituent}, config_s[symbol_basket])
+        basket_trading.signal_trading()
+        self.data[symbol_basket] = basket_trading.signal_state  # update signal activation status
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data)
