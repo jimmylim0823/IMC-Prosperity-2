@@ -20,18 +20,24 @@ class Strategy:
 
         # extract information from TradingState
         self.timestamp = state.timestamp
+        self.position = state.position.get(self.product, 0)
+
+        # prevent reshuffling of order depth
         self.bids = OrderedDict(state.order_depths[self.symbol].buy_orders)
         self.asks = OrderedDict(state.order_depths[self.symbol].sell_orders)
-        self.position = state.position.get(self.product, 0)
+
+        # build order book features
         self.best_bid = max(self.bids.keys())
         self.best_ask = min(self.asks.keys())
         self.worst_bid = min(self.bids.keys())
         self.worst_ask = max(self.asks.keys())
-
-        # volume weighted average price (vwap) for bid, ask, and mid for de-noising
-        self.bid_vwap = sum(p * q for p, q in self.bids.items()) / sum(self.bids.values())
-        self.ask_vwap = sum(p * q for p, q in self.asks.items()) / sum(self.asks.values())
-        self.mid_vwap = (self.bid_vwap + self.ask_vwap) / 2
+        self.bid_volume = sum(self.bids.values())  # sum of all quantities of bids
+        self.ask_volume = sum(self.asks.values())
+        self.bid_sweep = sum(p * q for p, q in self.bids.items())  # amount needed to sweep all bids
+        self.ask_sweep = sum(p * q for p, q in self.asks.items())
+        self.bid_vwap = self.bid_sweep / self.bid_volume  # volume weighted average price (vwap) of bids
+        self.ask_vwap = self.ask_sweep / self.bid_volume
+        self.mid_vwap = (self.bid_vwap + self.ask_vwap) / 2  # de-noised mid-price
 
         # initialize variables for orders
         self.orders: List[Order] = []  # append orders for this product here
@@ -297,6 +303,7 @@ class BasketTrading:
         # initialize basket and each constituent as Strategy Object
         self.basket = Strategy(state, basket_config)
         self.constituent = [Strategy(state, product_config) for product_config in constituent_config]
+        self.constituent_symbols = [s.symbol for s in self.constituent]
 
         # strategy configuration
         self.premium_mean = strategy_config['PREMIUM_MEAN']
@@ -327,13 +334,16 @@ class Trader:
                                           'POSITION_LIMIT': 60},
                           'CHOCOLATE': {'SYMBOL': 'CHOCOLATE',
                                         'PRODUCT': 'CHOCOLATE',
-                                        'POSITION_LIMIT': 250},
+                                        'POSITION_LIMIT': 250,
+                                        'UNIT_PER_BASKET': 4},
                           'STRAWBERRIES': {'SYMBOL': 'STRAWBERRIES',
                                            'PRODUCT': 'STRAWBERRIES',
-                                           'POSITION_LIMIT': 350},
+                                           'POSITION_LIMIT': 350,
+                                           'UNIT_PER_BASKET': 6},
                           'ROSES': {'SYMBOL': 'ROSES',
                                     'PRODUCT': 'ROSES',
-                                    'POSITION_LIMIT': 60},
+                                    'POSITION_LIMIT': 60,
+                                    'UNIT_PER_BASKET': 1},
                           },
               'STRATEGY': {'AMETHYSTS': {'FAIR_VALUE': 10000.0,
                                          'SL_INVENTORY': 20,
