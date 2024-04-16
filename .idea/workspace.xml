@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="restore data">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="delete fair value for arb">
+      <change afterPath="$PROJECT_DIR$/round_3.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/round_2.py" beforeDir="false" afterPath="$PROJECT_DIR$/round_2.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/trader_logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/trader_logger.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -302,7 +301,15 @@
       <option name="project" value="LOCAL" />
       <updated>1713142366468</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="delete fair value for arb">
+      <option name="closed" value="true" />
+      <created>1713146021196</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1713146021196</updated>
+    </task>
+    <option name="localTasksCounter" value="30" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -338,6 +345,7 @@
     <MESSAGE value="saving previous data to traderData" />
     <MESSAGE value="logger" />
     <MESSAGE value="restore data" />
-    <option name="LAST_COMMIT_MESSAGE" value="restore data" />
+    <MESSAGE value="delete fair value for arb" />
+    <option name="LAST_COMMIT_MESSAGE" value="delete fair value for arb" />
   </component>
 </project>
