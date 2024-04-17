@@ -1,6 +1,6 @@
 import math
 import statistics
-from typing import List, Tuple, Dict, Any
+from typing import List, Dict, Tuple, Any
 from collections import deque, OrderedDict
 
 import jsonpickle
@@ -301,7 +301,7 @@ class BasketTrading:
     """
     Statistical arbitrage between basket and its constituents
     """
-    def __init__(self, state: TradingState, signal_state: dict,
+    def __init__(self, state: TradingState, signal_state: Dict[int, int],
                  basket_config: dict, constituent_config: Dict[Symbol, dict], strategy_config: dict):
         # initialize basket and each constituent as Strategy Object
         self.basket = Strategy(state, basket_config)
@@ -321,8 +321,8 @@ class BasketTrading:
         self.premium_std = strategy_config['PREMIUM_STD']  # long-term standard deviation of premium
         self.signal_level = strategy_config['SIGNAL_LEVEL']  # entry point of trading signal
 
-        # signal state data
-        self.signal_state = signal_state  # 0 for non-active, non-zero as position of basket
+        # signal state data: 0 for non-active, non-zero as position of basket
+        self.signal_state = signal_state
 
         # build basket features
         self.basket_nav = sum(self.c_ratios[symbol] * self.c_mid_vwap[symbol] for symbol in self.c_symbols)
@@ -331,67 +331,58 @@ class BasketTrading:
 
     def signal_trading(self):
         """
-        Trade with mean-reverting signal based on z-score of premium
+        Trade with mean-reverting signal based on z-score of premium\n
+        Note it is possible to start at the beginning with stronger signal without filling lower signals\n
+        Signal +- 3: Sweep all orders including worst until max position\n
+        Signal +- 2: Take all but not worst orders\n
+        Signal +- 1: Take only best orders\n
         """
-        if self.z_score > self.signal_level['3'] and not self.signal_state['3']:
-            self.signal_state['3'] = 1
-            print("Signal 3 Enter")
+        levels = sorted(self.signal_state.keys(), key=abs, reverse=True)  # i.e. -3, 3, -2, 2, -1, 1, 0
 
-        elif self.z_score > self.signal_level['2']:
-            if self.signal_state['3']:
-                self.signal_state['3'] = 0
-                print("Signal 3 Exit")
-            elif not self.signal_state['2']:
-                self.signal_state['2'] = 1
-                print("Signal 2 Enter")
+        for i in range(len(levels)):
+            level = levels[i]
+            upper_level = level + int(math.copysign(1, level))  # 2->3, -1->-2
+            if self.z_score * self.signal_level[level] > 0:
+                # only consider when signs of z-score and signal level are same (exclude 0)
+                if abs(self.z_score) > abs(self.signal_level[level]) and not self.signal_state[level]:
+                    # Enter unactivated signal when z score crosses level outward
+                    self.signal_state[level] = 1  # change this to order of basket later
+                    print(f"Enter Signal Level {level} @ {self.z_score:.2f}")
+                    break  # do not activate weaker signal if both signal came out simultaneously
 
-        elif self.z_score > self.signal_level['1']:
-            if self.signal_state['2']:
-                self.signal_state['2'] = 0
-                print("Signal 2 Exit")
-            elif not self.signal_state['1']:
-                self.signal_state['1'] = 1
-                print("Signal 1 Enter")
+                elif upper_level not in self.signal_state:
+                    # out of index
+                    continue
 
-        elif self.z_score > self.signal_level['0'] and self.signal_state['-1']:
-            self.signal_state['-1'] = 0
-            print("Signal -1 Exit")
+                elif abs(self.z_score) < abs(self.signal_level[level]) and self.signal_state[upper_level]:
+                    # Exit when z score touches  lower level inward
+                    self.signal_state[upper_level] = 0
+                    print(f"Exit Signal Level {upper_level} @ {self.z_score:.2f}")
+                    continue  # allow exit of multiple signals in one timestamp
 
-        elif self.z_score < self.signal_level['0'] and self.signal_state['1']:
-            self.signal_state['1'] = 0
-            print("Signal 1 Exit")
+            elif self.signal_level[level] == 0:
+                # last but special case of level 0
+                if self.z_score > 0 and self.signal_state[level - 1]:
+                    # Exit of level -1 signal
+                    self.signal_state[level - 1] = 0
+                    print(f"Exit Signal Level {level - 1} @ {self.z_score:.2f}")
 
-        elif self.z_score < self.signal_level['-1']:
-            if self.signal_state['-2']:
-                self.signal_state['-2'] = 0
-                print("Signal -2 Exit")
-            elif not self.signal_state['-1']:
-                self.signal_state['-1'] = 1
-                print("Signal -1 Enter")
-
-        elif self.z_score < self.signal_level['-2']:
-            if self.signal_state['-3']:
-                self.signal_state['-3'] = 0
-                print("Signal -3 Exit")
-            elif not self.signal_state['-2']:
-                self.signal_state['-2'] = 1
-                print("Signal -2 Enter")
-
-        elif self.z_score < self.signal_level['-3'] and not self.signal_state['-3']:
-            self.signal_state['-3'] = 1
-            print("Signal -3 Exit")
+                elif self.z_score < 0 and self.signal_state[level + 1]:
+                    # Exit of level +1 signal
+                    self.signal_state[level + 1] = 0
+                    print(f"Exit Signal Level {level + 1} @ {self.z_score:.2f}")
 
 
 class Trader:
     """
     Class containing data and sending and receiving data with the trading server
     """
-    symbols: List[Symbol] = ['AMETHYSTS', 'STARFRUIT',  # Round 1
+    symbols = ['AMETHYSTS', 'STARFRUIT',  # Round 1
                'ORCHIDS',  # Round 2
                'GIFT_BASKET', 'CHOCOLATE', 'STRAWBERRIES', 'ROSES'  # Round 3
                ]
-    data = {'STARFRUIT': deque(),
-            'GIFT_BASKET': {str(i): 0 for i in range(-3, 4)}}
+    data = {"STARFRUIT": deque(),
+            "GIFT_BASKET": OrderedDict({i: 0 for i in range(-3, 4)})}
     config = {'PRODUCT': {'AMETHYSTS': {'SYMBOL': 'AMETHYSTS',
                                         'PRODUCT': 'AMETHYSTS',
                                         'POSITION_LIMIT': 20},
@@ -416,8 +407,7 @@ class Trader:
                           'ROSES': {'SYMBOL': 'ROSES',
                                     'PRODUCT': 'ROSES',
                                     'POSITION_LIMIT': 60,
-                                    'PER_BASKET': 1},
-                          },
+                                    'PER_BASKET': 1}},
               'STRATEGY': {'AMETHYSTS': {'FAIR_VALUE': 10000.0,
                                          'SL_INVENTORY': 20,
                                          'SL_SPREAD': 1,
@@ -437,7 +427,7 @@ class Trader:
                                        'MM_EDGE': 1.5},
                            'GIFT_BASKET': {'PREMIUM_MEAN': 385.0,
                                            'PREMIUM_STD': 75.0,
-                                           'SIGNAL_LEVEL': {str(i): 0.5 * i for i in range(-3, 4)}}
+                                           'SIGNAL_LEVEL': OrderedDict({i: 0.5 * i for i in range(-3, 4)})}
                            }
               }
 
@@ -451,7 +441,7 @@ class Trader:
         data_loss = any([bool(v) for v in self.data.values()])
         # restore only if any empty data except 0 timestamp
         if timestamp >= 100 and data_loss:
-            self.data = jsonpickle.decode(encoded_data)
+            self.data = jsonpickle.decode(encoded_data, keys=True)
 
     def store_data(self, symbol: Symbol, value: Any, max_size: int = None):
         """
@@ -512,5 +502,5 @@ class Trader:
         self.data[symbol_basket] = basket_trading.signal_state  # update signal activation status
 
         # Save Data to traderData and pass to next timestamp
-        traderData = jsonpickle.encode(self.data)
+        traderData = jsonpickle.encode(self.data, keys=True)
         return result, conversions, traderData
