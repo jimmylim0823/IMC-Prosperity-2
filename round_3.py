@@ -329,6 +329,51 @@ class BasketTrading:
         self.premium = self.basket.mid_vwap - self.basket_nav  # basket - constituent net asset value
         self.z_score = (self.premium - self.premium_mean) / self.premium_std  # z-score of premium
 
+    def bet_sizing(self):
+        levels = sorted(self.signal_level.values(), reverse=True)
+        order_quantity = 0
+        if self.z_score > levels[0]:
+            # basket over-valued -> short basket long constituent
+            order_quantity = -self.basket.bid_volume
+        elif self.z_score > levels[1]:
+            order_quantity = -self.basket.bid_volume + self.basket.bids[self.basket.worst_bid]
+        elif self.z_score > levels[2]:
+            order_quantity = -self.basket.bids[self.basket.best_bid]
+        elif self.z_score > levels[3]:
+            order_quantity = 0
+        elif self.z_score > levels[4]:
+            order_quantity = -self.basket.asks[self.basket.best_ask]
+        elif self.z_score > levels[5]:
+            order_quantity = -self.basket.ask_volume + self.basket.asks[self.basket.worst_ask]
+        elif self.z_score < levels[6]:
+            # basket under-valued -> long basket short constituent
+            order_quantity = -self.basket.ask_volume
+
+        if order_quantity < 0:
+            # short limit
+            order_quantity = min(max(order_quantity,
+                                     -self.basket_limit - min(self.basket.position, 0)), 0)
+        elif order_quantity > 0:
+            # long limit
+            order_quantity = max(min(order_quantity,
+                                     self.basket_limit - max(self.basket.position, 0)), 0)
+        return order_quantity
+
+    def basket_order(self, basket_quantity):
+        # Send calculated order quantity to worst price (price-time priority)
+        if basket_quantity < 0:
+            # short basket long constituent
+            self.basket.orders.append(Order(self.basket.symbol, self.basket.worst_bid, basket_quantity))
+            for symbol, strategy in self.constituent.items():
+                constituent_quantity = -self.c_ratios[symbol] * basket_quantity
+                strategy.orders.append(Order(symbol, strategy.worst_ask, constituent_quantity))
+        elif basket_quantity > 0:
+            # long basket short constituent
+            self.basket.orders.append(Order(self.basket.symbol, self.basket.worst_bid, basket_quantity))
+            for symbol, strategy in self.constituent.items():
+                constituent_quantity = -self.c_ratios[symbol] * basket_quantity
+                strategy.orders.append(Order(symbol, strategy.worst_bid, constituent_quantity))
+
     def signal_trading(self):
         """
         Trade with mean-reverting signal based on z-score of premium\n
@@ -346,8 +391,10 @@ class BasketTrading:
                 # only consider when signs of z-score and signal level are same (exclude 0)
                 if abs(self.z_score) > abs(self.signal_level[level]) and not self.signal_state[level]:
                     # Enter unactivated signal when z score crosses level outward
-                    self.signal_state[level] = 1  # change this to order of basket later
-                    print(f"Enter Signal Level {level} @ {self.z_score:.2f}")
+                    order_quantity = self.bet_sizing()
+                    self.basket_order(order_quantity)
+                    print(f"Enter Signal Level {level} {order_quantity} X @ {self.z_score:.2f}")
+                    self.signal_state[level] = order_quantity
                     break  # do not activate weaker signal if both signal came out simultaneously
 
                 elif upper_level not in self.signal_state:
@@ -356,21 +403,27 @@ class BasketTrading:
 
                 elif abs(self.z_score) < abs(self.signal_level[level]) and self.signal_state[upper_level]:
                     # Exit when z score touches  lower level inward
+                    order_quantity = self.signal_state[upper_level]
+                    self.basket_order(order_quantity)
+                    print(f"Exit Signal Level {upper_level} {order_quantity} X @ {self.z_score:.2f}")
                     self.signal_state[upper_level] = 0
-                    print(f"Exit Signal Level {upper_level} @ {self.z_score:.2f}")
                     continue  # allow exit of multiple signals in one timestamp
 
             elif self.signal_level[level] == 0:
                 # last but special case of level 0
                 if self.z_score > 0 and self.signal_state[level - 1]:
                     # Exit of level -1 signal
+                    order_quantity = self.signal_state[level - 1]
+                    self.basket_order(order_quantity)
+                    print(f"Exit Signal Level {level - 1} {order_quantity} X @ {self.z_score:.2f}")
                     self.signal_state[level - 1] = 0
-                    print(f"Exit Signal Level {level - 1} @ {self.z_score:.2f}")
 
                 elif self.z_score < 0 and self.signal_state[level + 1]:
                     # Exit of level +1 signal
+                    order_quantity = self.signal_state[level + 1]
+                    self.basket_order(order_quantity)
+                    print(f"Exit Signal Level {level + 1} {order_quantity} X @ {self.z_score:.2f}")
                     self.signal_state[level + 1] = 0
-                    print(f"Exit Signal Level {level + 1} @ {self.z_score:.2f}")
 
 
 class Trader:
@@ -382,7 +435,7 @@ class Trader:
                'GIFT_BASKET', 'CHOCOLATE', 'STRAWBERRIES', 'ROSES'  # Round 3
                ]
     data = {"STARFRUIT": deque(),
-            "GIFT_BASKET": OrderedDict({i: 0 for i in range(-3, 4)})}
+            "GIFT_BASKET": {i: 0 for i in range(-3, 4)}}
     config = {'PRODUCT': {'AMETHYSTS': {'SYMBOL': 'AMETHYSTS',
                                         'PRODUCT': 'AMETHYSTS',
                                         'POSITION_LIMIT': 20},
@@ -427,7 +480,7 @@ class Trader:
                                        'MM_EDGE': 1.5},
                            'GIFT_BASKET': {'PREMIUM_MEAN': 385.0,
                                            'PREMIUM_STD': 75.0,
-                                           'SIGNAL_LEVEL': OrderedDict({i: 0.5 * i for i in range(-3, 4)})}
+                                           'SIGNAL_LEVEL': {i: 0.5 * i for i in range(-3, 4)}}
                            }
               }
 
@@ -499,6 +552,9 @@ class Trader:
         basket_trading = BasketTrading(state, self.data[symbol_basket], config_p[symbol_basket],
                                        {s: config_p[s] for s in symbols_constituent}, config_s[symbol_basket])
         basket_trading.signal_trading()
+        result[symbol_basket] = basket_trading.basket.orders
+        for symbol in symbols_constituent:
+            result[symbol] = basket_trading.constituent[symbol].orders
         self.data[symbol_basket] = basket_trading.signal_state  # update signal activation status
 
         # Save Data to traderData and pass to next timestamp
