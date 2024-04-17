@@ -357,6 +357,7 @@ class BasketTrading:
         order_price = {s: self.c_w_ask[s] if order_quantity[s] > 0 else self.c_w_bid[s] for s in self.c_symbols}
         for symbol in self.c_symbols:
             self.constituent[symbol].orders.append(Order(symbol, order_price[symbol], order_quantity[symbol]))
+            print(f"{symbol} Basket Delta to {target_delta} {order_price[symbol]} X @ {order_quantity[symbol]}")
 
     def delta_carry(self):
         """

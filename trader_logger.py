@@ -112,7 +112,7 @@ logger = Logger()
 # ========== Trading Code ==========
 import math
 import statistics
-from typing import List, Dict, Tuple, Union
+from typing import List, Dict, Tuple, Any
 from collections import deque, OrderedDict
 
 import jsonpickle
@@ -132,17 +132,30 @@ class Strategy:
 
         # extract information from TradingState
         self.timestamp = state.timestamp
+        self.position = state.position.get(self.product, 0)
+
+        # prevent reshuffling of order depth
         self.bids = OrderedDict(state.order_depths[self.symbol].buy_orders)
         self.asks = OrderedDict(state.order_depths[self.symbol].sell_orders)
-        self.position = state.position.get(self.product, 0)
+
+        # build order book features
         self.best_bid = max(self.bids.keys())
         self.best_ask = min(self.asks.keys())
+        self.worst_bid = min(self.bids.keys())
+        self.worst_ask = max(self.asks.keys())
+        self.bid_volume = sum(self.bids.values())  # sum of all quantities of bids
+        self.ask_volume = sum(self.asks.values())
+        self.bid_sweep = sum(p * q for p, q in self.bids.items())  # amount needed to sweep all bids
+        self.ask_sweep = sum(p * q for p, q in self.asks.items())
+        self.bid_vwap = self.bid_sweep / self.bid_volume  # volume weighted average price (vwap) of bids
+        self.ask_vwap = self.ask_sweep / self.ask_volume
+        self.mid_vwap = (self.bid_vwap + self.ask_vwap) / 2  # de-noised mid-price
 
         # initialize variables for orders
         self.orders: List[Order] = []  # append orders for this product here
         self.expected_position = self.position  # expected position after market taking
         self.sum_buy_qty = 0  # check whether if buy order exceeds limit
-        self.sum_sell_qty = 0  # check whether if buy order exceeds limit
+        self.sum_sell_qty = 0
 
 
 class MarketMaking(Strategy):
@@ -253,17 +266,17 @@ class MarketMaking(Strategy):
 
 
 class LinearRegressionMM(MarketMaking):
+    """
+    Market making based on prediction of price with simple linear regression of price over time
+    """
     def __init__(self, state: TradingState,
                  product_config: dict, strategy_config: dict):
         super().__init__(state, product_config, strategy_config)
+
+        # strategy configuration
         self.min_window_size = strategy_config['MIN_WINDOW_SIZE']
         self.max_window_size = strategy_config['MAX_WINDOW_SIZE']
         self.predict_shift = strategy_config['PREDICT_SHIFT']
-
-        # volume weighted average price (vwap) for bid, ask, and mid for de-noising
-        self.bid_vwap = sum(p * q for p, q in self.bids.items()) / sum(self.bids.values())
-        self.ask_vwap = sum(p * q for p, q in self.asks.items()) / sum(self.asks.values())
-        self.mid_vwap = (self.bid_vwap + self.ask_vwap) / 2
 
     def predict_price(self, price_history: deque):
         """
@@ -396,12 +409,108 @@ class OTCArbitrage(Strategy):
         return self.orders, self.conversions
 
 
+class BasketTrading:
+    """
+    Basket trading based on pricing with NAV of constituents\n
+    Basket is traded alone in market making style but with pricing from constituent NAV\n
+    Sub-Strategy 1: Calculate fair value considering spread between basket and NAV\n
+    Sub-Strategy 2: Market make around fair value\n
+    Sub-Strategy 3: Follow trends with constituents which provide smaller spread to take
+    """
+    def __init__(self, state: TradingState,
+                 basket_config: dict, constituent_config: Dict[Symbol, dict], strategy_config: dict):
+        # initialize basket and each constituent as Strategy Object
+        self.basket = MarketMaking(state, basket_config, strategy_config)
+        self.constituent = {symbol: Strategy(state, config) for symbol, config in constituent_config.items()}
+
+        # configure basket information
+        self.c_symbols = list(self.constituent.keys())
+        self.c_ratios = {symbol: config['PER_BASKET'] for symbol, config in constituent_config.items()}
+        self.c_limits = {symbol: strategy.position_limit for symbol, strategy in self.constituent.items()}
+        self.c_mid_vwap = {symbol: strategy.mid_vwap for symbol, strategy in self.constituent.items()}
+        self.c_w_bid = {symbol: strategy.worst_bid for symbol, strategy in self.constituent.items()}
+        self.c_w_ask = {symbol: strategy.worst_ask for symbol, strategy in self.constituent.items()}
+        self.c_positions = {symbol: strategy.position for symbol, strategy in self.constituent.items()}
+        self.basket_limit = math.floor(min(self.c_limits[symbol] / self.c_ratios[symbol] for symbol in self.c_symbols))
+        self.basket_limit = min(self.basket_limit, self.basket.position_limit)  # max basket constituent pairs
+
+        # strategy configuration
+        self.premium_mean = strategy_config['PREMIUM_MEAN']  # long-term mean premium of basket over constituents
+        self.premium_std = strategy_config['PREMIUM_STD']  # long-term standard deviation of premium
+        self.alpha = strategy_config['LINEAR_SENSITIVITY']  # sensitivity for linear term of z-score
+        self.beta = strategy_config['QUADRATIC_SENSITIVITY']  # sensitivity for quadratic term of z-score
+        self.carry = strategy_config['CARRY']  # amount of delta to carry for trend following
+        self.basket.fair_value = self.basket.mid_vwap  # initialize
+        self.basket.position_limit = self.basket_limit  # change to maximum possible
+
+        # build basket features
+        self.basket_nav = sum(self.c_ratios[symbol] * self.c_mid_vwap[symbol] for symbol in self.c_symbols)
+        self.premium = self.basket.mid_vwap - self.basket_nav  # basket - constituent net asset value
+        self.z_score = (self.premium - self.premium_mean) / self.premium_std  # z-score of premium
+
+    def calculate_fair_value(self):
+        """
+        Calculate fair value of basket using the basket premium value and its z-score
+        """
+        demeaned_premium = self.premium - self.premium_mean  # center the variable with long term mean
+        scaling_coefficient = self.alpha * abs(self.z_score) + self.beta * self.z_score ** 2
+        pricing_shift = -demeaned_premium * scaling_coefficient  # premium is mean-reverting
+        self.basket.fair_value = self.basket.fair_value + pricing_shift
+
+    def neutralize_delta(self, target_delta: int = 0):
+        """
+        Neutralize delta of net position (basket + constituent) to targeted value by market taking
+
+        :param target_delta: (int) Targeted value of delta of net position after hedging
+        """
+        hedge_delta = target_delta - self.basket.position
+        target_position = {s: self.c_ratios[s] * hedge_delta for s in self.c_symbols}
+        order_quantity = {s: target_position[s] - self.c_positions[s] for s in self.c_symbols}
+        order_price = {s: self.c_w_ask[s] if order_quantity[s] > 0 else self.c_w_bid[s] for s in self.c_symbols}
+        for symbol in self.c_symbols:
+            self.constituent[symbol].orders.append(Order(symbol, order_price[symbol], order_quantity[symbol]))
+            logger.print(f"{symbol} Basket Delta to {target_delta} {order_price[symbol]} X @ {order_quantity[symbol]}")
+
+    def delta_carry(self):
+        """
+        Carry basket delta only with constituents to follow the trend\n
+        Considering that adverse selection is result of trend, out inventory level is proxy of trend\n
+        We use inventory of basket that we are market making to take directional bets cheaper with constituents
+        """
+        delta = int(self.basket.position * self.carry)
+        self.neutralize_delta(delta)
+
+    def aggregate_basket_orders(self) -> List[Order]:
+        """
+        Aggregate all orders from market making basket product
+
+        :rtype: List[Order]
+        :return: List of orders generated for product
+        """
+        self.calculate_fair_value()
+        self.basket.aggregate_orders()
+        return self.basket.orders
+
+    def aggregate_constituent_orders(self) -> Dict[Symbol, List[Order]]:
+        """
+        Aggregate all orders from market taking constituents
+
+        :rtype: Dict[Symbol, List[Order]]
+        :return: Dictionary of list of orders generated for each constituent
+        """
+        self.delta_carry()
+        return {symbol: self.constituent[symbol].orders for symbol in self.c_symbols}
+
+
 class Trader:
     """
     Class containing data and sending and receiving data with the trading server
     """
-    symbols = ['AMETHYSTS', 'STARFRUIT', 'ORCHIDS']
-    data = {'STARFRUIT': deque()}
+    symbols = ['AMETHYSTS', 'STARFRUIT',  # Round 1
+               'ORCHIDS',  # Round 2
+               'GIFT_BASKET', 'CHOCOLATE', 'STRAWBERRIES', 'ROSES'  # Round 3
+               ]
+    data = {"STARFRUIT": deque()}
     config = {'PRODUCT': {'AMETHYSTS': {'SYMBOL': 'AMETHYSTS',
                                         'PRODUCT': 'AMETHYSTS',
                                         'POSITION_LIMIT': 20},
@@ -411,8 +520,22 @@ class Trader:
                           'ORCHIDS': {'SYMBOL': 'ORCHIDS',
                                       'PRODUCT': 'ORCHIDS',
                                       'POSITION_LIMIT': 100,
-                                      'COST_STORING': 0.1}
-                          },
+                                      'COST_STORING': 0.1},
+                          'GIFT_BASKET': {'SYMBOL': 'GIFT_BASKET',
+                                          'PRODUCT': 'GIFT_BASKET',
+                                          'POSITION_LIMIT': 60},
+                          'CHOCOLATE': {'SYMBOL': 'CHOCOLATE',
+                                        'PRODUCT': 'CHOCOLATE',
+                                        'POSITION_LIMIT': 250,
+                                        'PER_BASKET': 4},
+                          'STRAWBERRIES': {'SYMBOL': 'STRAWBERRIES',
+                                           'PRODUCT': 'STRAWBERRIES',
+                                           'POSITION_LIMIT': 350,
+                                           'PER_BASKET': 6},
+                          'ROSES': {'SYMBOL': 'ROSES',
+                                    'PRODUCT': 'ROSES',
+                                    'POSITION_LIMIT': 60,
+                                    'PER_BASKET': 1}},
               'STRATEGY': {'AMETHYSTS': {'FAIR_VALUE': 10000.0,
                                          'SL_INVENTORY': 20,
                                          'SL_SPREAD': 1,
@@ -428,8 +551,19 @@ class Trader:
                                          'PREDICT_SHIFT': 1
                                          },
                            'ORCHIDS': {'EXP_STORAGE_TIME': 1,
-                                       'MIN_EDGE': 1.5,
-                                       'MM_EDGE': 1.6}
+                                       'MIN_EDGE': 1.0,
+                                       'MM_EDGE': 1.5},
+                           'GIFT_BASKET': {'PREMIUM_MEAN': 385.0,
+                                           'PREMIUM_STD': 75.0,
+                                           'FAIR_VALUE': 70000.0,
+                                           'SL_INVENTORY': 58,
+                                           'SL_SPREAD': 1,
+                                           'MM_SPREAD': 4,
+                                           'ORDER_SKEW': 0.0,
+                                           'LINEAR_SENSITIVITY': 1.0,
+                                           'QUADRATIC_SENSITIVITY': 1.0,
+                                           'CARRY': 2.0
+                                           }
                            }
               }
 
@@ -443,13 +577,13 @@ class Trader:
         data_loss = any([bool(v) for v in self.data.values()])
         # restore only if any empty data except 0 timestamp
         if timestamp >= 100 and data_loss:
-            self.data = jsonpickle.decode(encoded_data)
+            self.data = jsonpickle.decode(encoded_data, keys=True)
 
-    def store_data(self, symbol: Symbol, value: Union[int, float], max_size: int = None):
+    def store_data(self, symbol: Symbol, value: Any, max_size: int = None):
         """
         Store new mid vwap data for Starfruit to class variable as queue
         :param symbol: (Symbol) Symbol of which data belongs to
-        :param value: (Union[int, float]) Value to be stored in data
+        :param value: (Any) Value to be stored in data
         :param max_size: (int) Maximum size of the array, default None
         """
         if max_size:
@@ -462,7 +596,7 @@ class Trader:
         Trading algorithm that will be iterated for every timestamp
 
         :param state: (TradingState) State of each timestamp
-        :return: result, conversions, traderData: (Tuple[Tuple[Dict[Symbol, List[Order]], int, str]) \n
+        :return: result, conversions, traderData: (Tuple[Tuple[Dict[Symbol, List[Order]], int, str])
         Results (dict of orders, conversion number, and data) of algorithms to send to the server
         """
         # restore data from traderData of last timestamp
@@ -473,28 +607,37 @@ class Trader:
 
         # aggregate orders in this result dictionary
         result: Dict[Symbol, List[Order]] = {}
+        conversions: int = 0
 
         # Round 1: AMETHYSTS and STARFRUIT (Market Making)
         # Symbol 0: AMETHYSTS (Fixed Fair Value Market Making)
         symbol = self.symbols[0]
         fixed_mm = MarketMaking(state, config_p[symbol], config_s[symbol])
-        result[symbol] = fixed_mm.aggregate_orders()
+        # result[symbol] = fixed_mm.aggregate_orders()
 
         # Symbol 1: STARFRUIT (Linear Regression Market Making)
         symbol = self.symbols[1]
         lr_mm = LinearRegressionMM(state, config_p[symbol], config_s[symbol])
         self.store_data(lr_mm.symbol, lr_mm.mid_vwap, lr_mm.max_window_size)  # update data
         lr_mm.predict_price(self.data[symbol])  # update fair value
-        result[symbol] = lr_mm.aggregate_orders()
+        # result[symbol] = lr_mm.aggregate_orders()
 
         # Round 2: OTC-Exchange Arbitrage
         # Symbol 2: ORCHIDS
         symbol = self.symbols[2]
         otc_arb = OTCArbitrage(state, config_p[symbol], config_s[symbol])
-        result[symbol], conversions = otc_arb.aggregate_orders_conversions()
+        # result[symbol], conversions = otc_arb.aggregate_orders_conversions()
+
+        # Round 3: Basket Trading
+        # Symbol 3: GIFT_BASKET, 4 ~ 6: CHOCOLATE, STRAWBERRIES, ROSES
+        symbol_basket = self.symbols[3]
+        symbols_constituent = [self.symbols[i] for i in range(4, 7)]
+        basket_trading = BasketTrading(state, config_p[symbol_basket],
+                                       {s: config_p[s] for s in symbols_constituent}, config_s[symbol_basket])
+        result[symbol_basket] = basket_trading.aggregate_basket_orders()
+        for symbol, orders in basket_trading.aggregate_constituent_orders().items():
+            result[symbol] = orders
 
         # Save Data to traderData and pass to next timestamp
-        traderData = jsonpickle.encode(self.data)
-
-        logger.flush(state, result, conversions, traderData)
+        traderData = jsonpickle.encode(self.data, keys=True)
         return result, conversions, traderData
