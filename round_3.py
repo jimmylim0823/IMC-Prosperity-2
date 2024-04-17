@@ -299,12 +299,16 @@ class OTCArbitrage(Strategy):
 
 class BasketTrading:
     """
-    Statistical arbitrage between basket and its constituents
+    Basket trading based on pricing with NAV of constituents\n
+    Basket is traded alone in market making style but with pricing from constituent NAV\n
+    Sub-Strategy 1: Calculate fair value considering spread between basket and NAV\n
+    Sub-Strategy 2: Market make around fair value\n
+    Sub-Strategy 3: Follow trends with constituents which provide smaller spread to take
     """
-    def __init__(self, state: TradingState, signal_state: Dict[int, int],
+    def __init__(self, state: TradingState,
                  basket_config: dict, constituent_config: Dict[Symbol, dict], strategy_config: dict):
         # initialize basket and each constituent as Strategy Object
-        self.basket = Strategy(state, basket_config)
+        self.basket = MarketMaking(state, basket_config, strategy_config)
         self.constituent = {symbol: Strategy(state, config) for symbol, config in constituent_config.items()}
 
         # configure basket information
@@ -312,118 +316,77 @@ class BasketTrading:
         self.c_ratios = {symbol: config['PER_BASKET'] for symbol, config in constituent_config.items()}
         self.c_limits = {symbol: strategy.position_limit for symbol, strategy in self.constituent.items()}
         self.c_mid_vwap = {symbol: strategy.mid_vwap for symbol, strategy in self.constituent.items()}
+        self.c_w_bid = {symbol: strategy.worst_bid for symbol, strategy in self.constituent.items()}
+        self.c_w_ask = {symbol: strategy.worst_ask for symbol, strategy in self.constituent.items()}
         self.c_positions = {symbol: strategy.position for symbol, strategy in self.constituent.items()}
-        self.basket_limit = math.ceil(min(self.c_limits[symbol] / self.c_ratios[symbol] for symbol in self.c_symbols))
+        self.basket_limit = math.floor(min(self.c_limits[symbol] / self.c_ratios[symbol] for symbol in self.c_symbols))
         self.basket_limit = min(self.basket_limit, self.basket.position_limit)  # max basket constituent pairs
 
         # strategy configuration
         self.premium_mean = strategy_config['PREMIUM_MEAN']  # long-term mean premium of basket over constituents
         self.premium_std = strategy_config['PREMIUM_STD']  # long-term standard deviation of premium
-        self.signal_level = strategy_config['SIGNAL_LEVEL']  # entry point of trading signal
-
-        # signal state data: 0 for non-active, non-zero as position of basket
-        self.signal_state = signal_state
+        self.alpha = strategy_config['LINEAR_SENSITIVITY']  # sensitivity for linear term of z-score
+        self.beta = strategy_config['QUADRATIC_SENSITIVITY']  # sensitivity for quadratic term of z-score
+        self.carry = strategy_config['CARRY']  # amount of delta to carry for trend following
+        self.basket.fair_value = self.basket.mid_vwap  # initialize
+        self.basket.position_limit = self.basket_limit  # change to maximum possible
 
         # build basket features
         self.basket_nav = sum(self.c_ratios[symbol] * self.c_mid_vwap[symbol] for symbol in self.c_symbols)
         self.premium = self.basket.mid_vwap - self.basket_nav  # basket - constituent net asset value
         self.z_score = (self.premium - self.premium_mean) / self.premium_std  # z-score of premium
 
-    def bet_sizing(self):
-        levels = sorted(self.signal_level.values(), reverse=True)
-        order_quantity = 0
-        if self.z_score > levels[0]:
-            # basket over-valued -> short basket long constituent
-            order_quantity = -self.basket.bid_volume
-        elif self.z_score > levels[1]:
-            order_quantity = -self.basket.bid_volume + self.basket.bids[self.basket.worst_bid]
-        elif self.z_score > levels[2]:
-            order_quantity = -self.basket.bids[self.basket.best_bid]
-        elif self.z_score > levels[3]:
-            order_quantity = 0
-        elif self.z_score > levels[4]:
-            order_quantity = -self.basket.asks[self.basket.best_ask]
-        elif self.z_score > levels[5]:
-            order_quantity = -self.basket.ask_volume + self.basket.asks[self.basket.worst_ask]
-        elif self.z_score < levels[6]:
-            # basket under-valued -> long basket short constituent
-            order_quantity = -self.basket.ask_volume
-
-        if order_quantity < 0:
-            # short limit
-            order_quantity = min(max(order_quantity,
-                                     -self.basket_limit - min(self.basket.position, 0)), 0)
-        elif order_quantity > 0:
-            # long limit
-            order_quantity = max(min(order_quantity,
-                                     self.basket_limit - max(self.basket.position, 0)), 0)
-        return order_quantity
-
-    def basket_order(self, basket_quantity):
-        # Send calculated order quantity to worst price (price-time priority)
-        if basket_quantity < 0:
-            # short basket long constituent
-            self.basket.orders.append(Order(self.basket.symbol, self.basket.worst_bid, basket_quantity))
-            for symbol, strategy in self.constituent.items():
-                constituent_quantity = -self.c_ratios[symbol] * basket_quantity
-                strategy.orders.append(Order(symbol, strategy.worst_ask, constituent_quantity))
-        elif basket_quantity > 0:
-            # long basket short constituent
-            self.basket.orders.append(Order(self.basket.symbol, self.basket.worst_bid, basket_quantity))
-            for symbol, strategy in self.constituent.items():
-                constituent_quantity = -self.c_ratios[symbol] * basket_quantity
-                strategy.orders.append(Order(symbol, strategy.worst_bid, constituent_quantity))
-
-    def signal_trading(self):
+    def calculate_fair_value(self):
         """
-        Trade with mean-reverting signal based on z-score of premium\n
-        Note it is possible to start at the beginning with stronger signal without filling lower signals\n
-        Signal +- 3: Sweep all orders including worst until max position\n
-        Signal +- 2: Take all but not worst orders\n
-        Signal +- 1: Take only best orders\n
+        Calculate fair value of basket using the basket premium value and its z-score
         """
-        levels = sorted(self.signal_state.keys(), key=abs, reverse=True)  # i.e. -3, 3, -2, 2, -1, 1, 0
+        demeaned_premium = self.premium - self.premium_mean  # center the variable with long term mean
+        scaling_coefficient = self.alpha * abs(self.z_score) + self.beta * self.z_score ** 2
+        pricing_shift = -demeaned_premium * scaling_coefficient  # premium is mean-reverting
+        self.basket.fair_value = self.basket.fair_value + pricing_shift
 
-        for i in range(len(levels)):
-            level = levels[i]
-            upper_level = level + int(math.copysign(1, level))  # 2->3, -1->-2
-            if self.z_score * self.signal_level[level] > 0:
-                # only consider when signs of z-score and signal level are same (exclude 0)
-                if abs(self.z_score) > abs(self.signal_level[level]) and not self.signal_state[level]:
-                    # Enter unactivated signal when z score crosses level outward
-                    order_quantity = self.bet_sizing()
-                    self.basket_order(order_quantity)
-                    print(f"Enter Signal Level {level} {order_quantity} X @ {self.z_score:.2f}")
-                    self.signal_state[level] = order_quantity
-                    break  # do not activate weaker signal if both signal came out simultaneously
+    def neutralize_delta(self, target_delta: int = 0):
+        """
+        Neutralize delta of net position (basket + constituent) to targeted value by market taking
 
-                elif upper_level not in self.signal_state:
-                    # out of index
-                    continue
+        :param target_delta: (int) Targeted value of delta of net position after hedging
+        """
+        hedge_delta = target_delta - self.basket.position
+        target_position = {s: self.c_ratios[s] * hedge_delta for s in self.c_symbols}
+        order_quantity = {s: target_position[s] - self.c_positions[s] for s in self.c_symbols}
+        order_price = {s: self.c_w_ask[s] if order_quantity[s] > 0 else self.c_w_bid[s] for s in self.c_symbols}
+        for symbol in self.c_symbols:
+            self.constituent[symbol].orders.append(Order(symbol, order_price[symbol], order_quantity[symbol]))
 
-                elif abs(self.z_score) < abs(self.signal_level[level]) and self.signal_state[upper_level]:
-                    # Exit when z score touches  lower level inward
-                    order_quantity = self.signal_state[upper_level]
-                    self.basket_order(order_quantity)
-                    print(f"Exit Signal Level {upper_level} {order_quantity} X @ {self.z_score:.2f}")
-                    self.signal_state[upper_level] = 0
-                    continue  # allow exit of multiple signals in one timestamp
+    def delta_carry(self):
+        """
+        Carry basket delta only with constituents to follow the trend\n
+        Considering that adverse selection is result of trend, out inventory level is proxy of trend\n
+        We use inventory of basket that we are market making to take directional bets cheaper with constituents
+        """
+        delta = int(self.basket.position * self.carry)
+        self.neutralize_delta(delta)
 
-            elif self.signal_level[level] == 0:
-                # last but special case of level 0
-                if self.z_score > 0 and self.signal_state[level - 1]:
-                    # Exit of level -1 signal
-                    order_quantity = self.signal_state[level - 1]
-                    self.basket_order(order_quantity)
-                    print(f"Exit Signal Level {level - 1} {order_quantity} X @ {self.z_score:.2f}")
-                    self.signal_state[level - 1] = 0
+    def aggregate_basket_orders(self) -> List[Order]:
+        """
+        Aggregate all orders from market making basket product
 
-                elif self.z_score < 0 and self.signal_state[level + 1]:
-                    # Exit of level +1 signal
-                    order_quantity = self.signal_state[level + 1]
-                    self.basket_order(order_quantity)
-                    print(f"Exit Signal Level {level + 1} {order_quantity} X @ {self.z_score:.2f}")
-                    self.signal_state[level + 1] = 0
+        :rtype: List[Order]
+        :return: List of orders generated for product
+        """
+        self.calculate_fair_value()
+        self.basket.aggregate_orders()
+        return self.basket.orders
+
+    def aggregate_constituent_orders(self) -> Dict[Symbol, List[Order]]:
+        """
+        Aggregate all orders from market taking constituents
+
+        :rtype: Dict[Symbol, List[Order]]
+        :return: Dictionary of list of orders generated for each constituent
+        """
+        self.delta_carry()
+        return {symbol: self.constituent[symbol].orders for symbol in self.c_symbols}
 
 
 class Trader:
@@ -434,8 +397,7 @@ class Trader:
                'ORCHIDS',  # Round 2
                'GIFT_BASKET', 'CHOCOLATE', 'STRAWBERRIES', 'ROSES'  # Round 3
                ]
-    data = {"STARFRUIT": deque(),
-            "GIFT_BASKET": {i: 0 for i in range(-3, 4)}}
+    data = {"STARFRUIT": deque()}
     config = {'PRODUCT': {'AMETHYSTS': {'SYMBOL': 'AMETHYSTS',
                                         'PRODUCT': 'AMETHYSTS',
                                         'POSITION_LIMIT': 20},
@@ -480,7 +442,15 @@ class Trader:
                                        'MM_EDGE': 1.5},
                            'GIFT_BASKET': {'PREMIUM_MEAN': 385.0,
                                            'PREMIUM_STD': 75.0,
-                                           'SIGNAL_LEVEL': {i: 0.5 * i for i in range(-3, 4)}}
+                                           'FAIR_VALUE': 70000.0,
+                                           'SL_INVENTORY': 58,
+                                           'SL_SPREAD': 1,
+                                           'MM_SPREAD': 4,
+                                           'ORDER_SKEW': 0.0,
+                                           'LINEAR_SENSITIVITY': 1.0,
+                                           'QUADRATIC_SENSITIVITY': 1.0,
+                                           'CARRY': 2.0
+                                           }
                            }
               }
 
@@ -513,7 +483,7 @@ class Trader:
         Trading algorithm that will be iterated for every timestamp
 
         :param state: (TradingState) State of each timestamp
-        :return: result, conversions, traderData: (Tuple[Tuple[Dict[Symbol, List[Order]], int, str]) \n
+        :return: result, conversions, traderData: (Tuple[Tuple[Dict[Symbol, List[Order]], int, str])
         Results (dict of orders, conversion number, and data) of algorithms to send to the server
         """
         # restore data from traderData of last timestamp
@@ -549,13 +519,11 @@ class Trader:
         # Symbol 3: GIFT_BASKET, 4 ~ 6: CHOCOLATE, STRAWBERRIES, ROSES
         symbol_basket = self.symbols[3]
         symbols_constituent = [self.symbols[i] for i in range(4, 7)]
-        basket_trading = BasketTrading(state, self.data[symbol_basket], config_p[symbol_basket],
+        basket_trading = BasketTrading(state, config_p[symbol_basket],
                                        {s: config_p[s] for s in symbols_constituent}, config_s[symbol_basket])
-        basket_trading.signal_trading()
-        result[symbol_basket] = basket_trading.basket.orders
-        for symbol in symbols_constituent:
-            result[symbol] = basket_trading.constituent[symbol].orders
-        self.data[symbol_basket] = basket_trading.signal_state  # update signal activation status
+        result[symbol_basket] = basket_trading.aggregate_basket_orders()
+        for symbol, orders in basket_trading.aggregate_constituent_orders().items():
+            result[symbol] = orders
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)
