@@ -640,4 +640,6 @@ class Trader:
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)
+
+        logger.flush(state, result, conversions, traderData)
         return result, conversions, traderData
