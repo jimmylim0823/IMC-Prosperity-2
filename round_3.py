@@ -63,14 +63,14 @@ class MarketMaking(Strategy):
         self.mm_spread: int = strategy_config['MM_SPREAD']  # spread for market making
         self.order_skew: float = strategy_config['ORDER_SKEW']  # extra skewing order quantity when market making
 
-    def scratch_under_valued(self):
+    def scratch_under_valued(self, mid_vwap=False):
         """
         Scratch any under-valued or par-valued orders by aggressing against bots
         """
-
+        reserve_price = self.mid_vwap if mid_vwap else self.fair_value
         if -self.sl_inventory <= self.position <= self.sl_inventory:
             # use this strategy only when position is within stop loss inventory level
-            if self.best_bid >= self.fair_value and len(self.bids) >= 2:
+            if self.best_bid >= reserve_price and len(self.bids) >= 2:
                 # trade (sell) against bots trying to buy too expensive but not against worst bid
                 order_quantity = min(max(-self.bids[self.best_bid],
                                          -self.position_limit - min(self.position, 0)), 0)
@@ -79,7 +79,7 @@ class MarketMaking(Strategy):
                 self.sum_sell_qty += order_quantity
                 print(f"Scratch Sell {order_quantity} X @ {self.best_bid}")
 
-            elif self.best_ask <= self.fair_value and len(self.asks) >= 2:
+            elif self.best_ask <= reserve_price and len(self.asks) >= 2:
                 # trade (buy) against bots trying to sell to cheap but not against worst ask
                 order_quantity = max(min(-self.asks[self.best_ask],
                                          self.position_limit - max(self.position, 0)), 0)
@@ -88,14 +88,14 @@ class MarketMaking(Strategy):
                 self.sum_buy_qty += order_quantity
                 print(f"Scratch Buy {order_quantity} X @ {self.best_ask}")
 
-    def stop_loss(self):
+    def stop_loss(self, ignore_worst=True):
         """
         Stop loss when inventory over acceptable level
         """
         if self.position > self.sl_inventory and self.best_bid >= self.fair_value - self.sl_spread:
             # stop loss sell not too cheap when in long position over acceptable inventory
-            if len(self.bids) >= 2:
-                # do not take worst bid which is also best bid
+            if len(self.bids) >= int(ignore_worst) + 1:
+                # do not take worst bid which is also best bid if ignore worst
                 order_quantity = max(-self.bids[self.best_bid], -self.position + self.sl_inventory)
                 self.orders.append(Order(self.symbol, self.best_bid, order_quantity))
                 self.expected_position += order_quantity
@@ -104,8 +104,8 @@ class MarketMaking(Strategy):
 
         elif self.position < -self.sl_inventory and self.best_ask <= self.fair_value + self.sl_spread:
             # stop loss buy not too expensive when in short position over acceptable inventory
-            if len(self.asks) >= 2:
-                # do not take worst ask which is also best ask
+            if len(self.asks) >= int(ignore_worst) + 1:
+                # do not take worst ask which is also best ask if ignore worst
                 order_quantity = min(-self.asks[self.best_ask], -self.position - self.sl_inventory)
                 self.orders.append(Order(self.symbol, self.best_ask, order_quantity))
                 self.expected_position += order_quantity
@@ -139,7 +139,7 @@ class MarketMaking(Strategy):
         self.orders.append(Order(self.symbol, ask_price, ask_quantity))
         print(f"Market Make Bid {bid_quantity} X @ {bid_price} Ask {ask_quantity} X @ {ask_price}")
 
-    def aggregate_orders(self) -> List[Order]:
+    def aggregate_orders(self, ignore_worst_sl=True) -> List[Order]:
         """
         Aggregate all orders from all sub strategies under market making
 
@@ -148,7 +148,7 @@ class MarketMaking(Strategy):
         """
         print(f"{self.symbol} Position {self.position}")
         self.scratch_under_valued()
-        self.stop_loss()
+        self.stop_loss(ignore_worst_sl)
         self.market_make()
         return self.orders
 
@@ -327,6 +327,7 @@ class BasketTrading:
         self.premium_std = strategy_config['PREMIUM_STD']  # long-term standard deviation of premium
         self.alpha = strategy_config['LINEAR_SENSITIVITY']  # sensitivity for linear term of z-score
         self.beta = strategy_config['QUADRATIC_SENSITIVITY']  # sensitivity for quadratic term of z-score
+        self.sl_target = strategy_config['SL_TARGET']  # stop loss up to sl target position level
         self.carry = strategy_config['CARRY']  # amount of delta to carry for trend following
         self.basket.fair_value = self.basket.mid_vwap  # initialize
         self.basket.position_limit = self.basket_limit  # change to maximum possible
@@ -345,28 +346,27 @@ class BasketTrading:
         pricing_shift = -demeaned_premium * scaling_coefficient  # premium is mean-reverting
         self.basket.fair_value = self.basket.fair_value + pricing_shift
 
-    def neutralize_delta(self, target_delta: int = 0):
+    def aggressive_stop_loss(self):
         """
-        Neutralize delta of net position (basket + constituent) to targeted value by market taking
+        Take aggressive stop loss to control inventory with stop loss trigger and target inventory level
+        """
+        if self.basket.position > self.basket.sl_inventory:
+            # stop loss sell when too much positive inventory, sl up to sl target, max volume worst price
+            order_quantity = max(-self.basket.bid_volume, self.sl_target - self.basket.position)
+            order_price = self.basket.worst_bid
+            self.basket.orders.append(Order(self.basket.symbol, order_price, order_quantity))
+            self.basket.expected_position += order_quantity
+            self.basket.sum_sell_qty += order_quantity
+            print(f"Stop Loss Sell {order_quantity} X @ {order_price}")
 
-        :param target_delta: (int) Targeted value of delta of net position after hedging
-        """
-        hedge_delta = target_delta - self.basket.position
-        target_position = {s: self.c_ratios[s] * hedge_delta for s in self.c_symbols}
-        order_quantity = {s: target_position[s] - self.c_positions[s] for s in self.c_symbols}
-        order_price = {s: self.c_w_ask[s] if order_quantity[s] > 0 else self.c_w_bid[s] for s in self.c_symbols}
-        for symbol in self.c_symbols:
-            self.constituent[symbol].orders.append(Order(symbol, order_price[symbol], order_quantity[symbol]))
-            print(f"{symbol} Basket Delta to {target_delta} {order_price[symbol]} X @ {order_quantity[symbol]}")
-
-    def delta_carry(self):
-        """
-        Carry basket delta only with constituents to follow the trend\n
-        Considering that adverse selection is result of trend, out inventory level is proxy of trend\n
-        We use inventory of basket that we are market making to take directional bets cheaper with constituents
-        """
-        delta = int(self.basket.position * self.carry)
-        self.neutralize_delta(delta)
+        elif self.basket.position < -self.basket.sl_inventory:
+            # stop buy sell when too much negative inventory, sl up to sl target, max volume worst price
+            order_quantity = min(-self.basket.ask_volume, -self.sl_target - self.basket.position)
+            order_price = self.basket.worst_ask
+            self.basket.orders.append(Order(self.basket.symbol, order_price, order_quantity))
+            self.basket.expected_position += order_quantity
+            self.basket.sum_buy_qty += order_quantity
+            print(f"Stop Loss Buy {order_quantity} X @ {order_price}")
 
     def aggregate_basket_orders(self) -> List[Order]:
         """
@@ -375,19 +375,12 @@ class BasketTrading:
         :rtype: List[Order]
         :return: List of orders generated for product
         """
+        print(f"{self.basket.symbol} Position {self.basket.position}")
         self.calculate_fair_value()
-        self.basket.aggregate_orders()
+        self.basket.scratch_under_valued(mid_vwap=True)
+        self.aggressive_stop_loss()
+        self.basket.market_make()
         return self.basket.orders
-
-    def aggregate_constituent_orders(self) -> Dict[Symbol, List[Order]]:
-        """
-        Aggregate all orders from market taking constituents
-
-        :rtype: Dict[Symbol, List[Order]]
-        :return: Dictionary of list of orders generated for each constituent
-        """
-        self.delta_carry()
-        return {symbol: self.constituent[symbol].orders for symbol in self.c_symbols}
 
 
 class Trader:
@@ -436,22 +429,21 @@ class Trader:
                                          'ORDER_SKEW': 1.0,
                                          'MIN_WINDOW_SIZE': 5,
                                          'MAX_WINDOW_SIZE': 10,
-                                         'PREDICT_SHIFT': 1
-                                         },
+                                         'PREDICT_SHIFT': 1},
                            'ORCHIDS': {'EXP_STORAGE_TIME': 1,
                                        'MIN_EDGE': 1.0,
                                        'MM_EDGE': 1.5},
                            'GIFT_BASKET': {'PREMIUM_MEAN': 385.0,
                                            'PREMIUM_STD': 75.0,
                                            'FAIR_VALUE': 70000.0,
-                                           'SL_INVENTORY': 58,
+                                           'SL_INVENTORY': 57,
                                            'SL_SPREAD': 1,
-                                           'MM_SPREAD': 4,
-                                           'ORDER_SKEW': 0.0,
+                                           'MM_SPREAD': 2.0,
+                                           'ORDER_SKEW': 1.0,
                                            'LINEAR_SENSITIVITY': 1.0,
-                                           'QUADRATIC_SENSITIVITY': 1.0,
-                                           'CARRY': 2.0
-                                           }
+                                           'QUADRATIC_SENSITIVITY': 0.0,
+                                           'SL_TARGET': 0,
+                                           'CARRY': 2.0}
                            }
               }
 
@@ -501,20 +493,20 @@ class Trader:
         # Symbol 0: AMETHYSTS (Fixed Fair Value Market Making)
         symbol = self.symbols[0]
         fixed_mm = MarketMaking(state, config_p[symbol], config_s[symbol])
-        # result[symbol] = fixed_mm.aggregate_orders()
+        result[symbol] = fixed_mm.aggregate_orders()
 
         # Symbol 1: STARFRUIT (Linear Regression Market Making)
         symbol = self.symbols[1]
         lr_mm = LinearRegressionMM(state, config_p[symbol], config_s[symbol])
         self.store_data(lr_mm.symbol, lr_mm.mid_vwap, lr_mm.max_window_size)  # update data
         lr_mm.predict_price(self.data[symbol])  # update fair value
-        # result[symbol] = lr_mm.aggregate_orders()
+        result[symbol] = lr_mm.aggregate_orders()
 
         # Round 2: OTC-Exchange Arbitrage
         # Symbol 2: ORCHIDS
         symbol = self.symbols[2]
         otc_arb = OTCArbitrage(state, config_p[symbol], config_s[symbol])
-        # result[symbol], conversions = otc_arb.aggregate_orders_conversions()
+        result[symbol], conversions = otc_arb.aggregate_orders_conversions()
 
         # Round 3: Basket Trading
         # Symbol 3: GIFT_BASKET, 4 ~ 6: CHOCOLATE, STRAWBERRIES, ROSES
@@ -523,9 +515,8 @@ class Trader:
         basket_trading = BasketTrading(state, config_p[symbol_basket],
                                        {s: config_p[s] for s in symbols_constituent}, config_s[symbol_basket])
         result[symbol_basket] = basket_trading.aggregate_basket_orders()
-        for symbol, orders in basket_trading.aggregate_constituent_orders().items():
-            result[symbol] = orders
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)
+        # logger.flush(state, result, conversions, traderData)
         return result, conversions, traderData
