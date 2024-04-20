@@ -384,6 +384,12 @@ class BasketTrading:
 
 
 class OptionTrading:
+    """
+    Trade option with delta neutral strategy mainly exposing to vega
+    Sub-Strategy 1: Calculate rolling z-score of implied volatility
+    Sub-Strategy 2: Trade IV mean-reversion based on IV z-score, pyramid-style position
+    Sub-Strategy 3: Neutralized delta with underlying asset
+    """
     def __init__(self, state: TradingState,
                  underlying_config: dict, option_config: dict, strategy_config: dict):
         # initialize underlying and option as Strategy Object
@@ -391,7 +397,109 @@ class OptionTrading:
         self.option = Strategy(state, option_config)
 
         # config option specification
-        self>>>DFDFdddd
+        self.type = strategy_config['TYPE']
+        self.K = float(strategy_config['STRIKE'])
+        self.T = strategy_config['MATURITY']
+        self.trading_days = strategy_config['TRADING_DAYS']
+
+        # config strategy
+        self.min_window_size = strategy_config['MIN_WINDOW_SIZE']
+        self.max_window_size = strategy_config['MAX_WINDOW_SIZE']
+        self.min_z = strategy_config['MIN_Z']
+        self.max_z = strategy_config['MAX_Z']
+
+        # build option features
+        self.log_moneyness = math.log(self.underlying.mid_vwap / self.K)
+        self.root_tau = math.sqrt((self.T + 1 - self.option.timestamp / 1000000) / self.trading_days)
+        self.iv = self.implied_volatility()
+        self.d1, self.d2 = self.calculate_d1_d2(self.iv)
+        self.delta = statistics.NormalDist().cdf(self.d1)  # delta = N(d1)
+        self.option_limit = self.underlying.position_limit / self.delta
+        self.iv_zscore = 0.0
+
+    def implied_volatility(self) -> float:
+        """
+        Calculate implied volatility using closed-form estimator by Hallerbach (2004).\n
+        Risk-free rate is assumed to be zero.
+
+        :return: (float) Black-Scholes-Merton based implied volatility
+        """
+        s = self.underlying.mid_vwap
+        c = self.option.mid_vwap
+        factor = math.sqrt(2 * math.pi) / (2 * (s + self.K))
+        a = 2 * c + self.K - s
+        b = 1.85 * (s + self.K) * (self.K - s) ** 2 / (math.pi * math.sqrt(self.K * s))
+        sigma_root_tau = factor * (a + math.sqrt(a ** 2 - b))
+        iv = sigma_root_tau / self.root_tau
+        return iv
+
+    def calculate_d1_d2(self, sigma) -> Tuple[float, float]:
+        """
+        Calculate d1, d2 value of Black-Scholes-Merton Model.\n
+        Risk-free rate is assumed to be zero.
+
+        :param sigma: volatility input for BSM d1, d2
+        :return: (Tuple[float, float]) d1, d2 value of BSM
+        """
+        numerator = self.log_moneyness + 0.5 * (sigma * self.root_tau) ** 2
+        denominator = sigma * self.root_tau
+        d1_value = numerator / denominator
+        d2_value = d1_value - sigma * self.root_tau
+        return d1_value, d2_value
+
+    def delta_hedge(self, target_delta: float = 0.0):
+        """
+        Generate order to hedge delta exposure of portfolio
+
+        :param target_delta: (float) target delta of portfolio after adjusting
+        """
+        current_delta = self.delta * self.option.position + self.underlying.position
+        qty = int(target_delta - current_delta)
+        hedge_quantity = min(self.underlying.bid_volume, qty) if qty > 0 else max(self.underlying.ask_volume, qty)
+        order_price = self.underlying.worst_ask if hedge_quantity > 0 else self.underlying.worst_bid
+        if hedge_quantity != 0:
+            self.underlying.orders.append(Order(self.underlying.symbol, order_price, hedge_quantity))
+            print(f"Delta Hedge {hedge_quantity} X @ {order_price}")
+
+    def rolling_iv_z_score(self, data: deque):
+        """
+        Calculate and update rolling z score of implied volatility
+
+        :param data: (deque) array of implied volatility values
+        """
+        if len(data) >= self.min_window_size:
+            mu = statistics.mean(data)
+            std = statistics.stdev(data)
+            self.iv_zscore = (self.iv - mu) / std
+
+    def iv_mean_reversion(self):
+        """
+        Generate order for implied volatility mean reversion strategy by market taking.\n
+        Pyramid position with respect to z-score value when over threshold.
+        """
+        clip_z = min(self.iv_zscore, self.max_z) if self.iv_zscore > 0 else max(self.iv_zscore, -self.max_z)
+        # consider triangle vs trapezoid distribution
+        target_position = int(-self.option_limit * clip_z / self.max_z)
+        qty = target_position - self.option.position
+        order_quantity = min(self.option.bid_volume, qty) if qty > 0 else max(self.option.ask_volume, qty)
+        order_price = self.option.worst_ask if order_quantity > 0 else self.option.worst_bid
+        if order_quantity != 0 and abs(self.iv_zscore) > self.min_z:
+            self.option.orders.append(Order(self.option.symbol, order_price, order_quantity))
+            print(f"IV: {self.iv:.2f} Z-Score {self.iv_zscore:.4f} Take {order_quantity} X @ {order_price}")
+
+    def aggregate_orders(self) -> Tuple[List[Order], List[Order]]:
+        """
+        Aggregate all orders from option trading strategies
+
+        :rtype: Tuple[List[Order], List[Order]]
+        :return: List of orders generated for underlying and option
+        """
+        print(f"{self.underlying.symbol} Current Position {self.underlying.position}")
+        self.delta_hedge()
+        print(f"{self.option.symbol} Current Position {self.option.position}")
+        self.iv_mean_reversion()
+        return self.underlying.orders, self.option.orders
+
 
 class Trader:
     """
@@ -399,9 +507,11 @@ class Trader:
     """
     symbols = ['AMETHYSTS', 'STARFRUIT',  # Round 1
                'ORCHIDS',  # Round 2
-               'GIFT_BASKET', 'CHOCOLATE', 'STRAWBERRIES', 'ROSES'  # Round 3
+               'GIFT_BASKET', 'CHOCOLATE', 'STRAWBERRIES', 'ROSES',  # Round 3
+               'COCONUT', 'COCONUT_COUPON'  # Round 4
                ]
-    data = {"STARFRUIT": deque()}
+    data = {"STARFRUIT": deque(),
+            "COCONUT": deque()}
     config = {'PRODUCT': {'AMETHYSTS': {'SYMBOL': 'AMETHYSTS',
                                         'PRODUCT': 'AMETHYSTS',
                                         'POSITION_LIMIT': 20},
@@ -426,7 +536,13 @@ class Trader:
                           'ROSES': {'SYMBOL': 'ROSES',
                                     'PRODUCT': 'ROSES',
                                     'POSITION_LIMIT': 60,
-                                    'PER_BASKET': 1}},
+                                    'PER_BASKET': 1},
+                          'COCONUT': {'SYMBOL': 'COCONUT',
+                                      'PRODUCT': 'COCONUT',
+                                      'POSITION_LIMIT': 300},
+                          'COCONUT_COUPON': {'SYMBOL': 'COCONUT_COUPON',
+                                             'PRODUCT': 'COCONUT_COUPON',
+                                             'POSITION_LIMIT': 600}},
               'STRATEGY': {'AMETHYSTS': {'FAIR_VALUE': 10000.0,
                                          'SL_INVENTORY': 20,
                                          'SL_SPREAD': 1,
@@ -453,7 +569,15 @@ class Trader:
                                            'LINEAR_SENSITIVITY': 1.0,
                                            'QUADRATIC_SENSITIVITY': 0.0,
                                            'SL_TARGET': 0,
-                                           'CARRY': 2.0}
+                                           'CARRY': 2.0},
+                           'COCONUT': {'TYPE': 'CALL',
+                                       'STRIKE': 10000,
+                                       'MATURITY': 247,
+                                       'TRADING_DAYS': 246,
+                                       'MIN_WINDOW_SIZE': 10,
+                                       'MAX_WINDOW_SIZE': 100,
+                                       'MIN_Z': 1.0,
+                                       'MAX_Z': 2.0}
                            }
               }
 
@@ -525,6 +649,16 @@ class Trader:
         basket_trading = BasketTrading(state, config_p[symbol_basket],
                                        {s: config_p[s] for s in symbols_constituent}, config_s[symbol_basket])
         # result[symbol_basket] = basket_trading.aggregate_basket_orders()
+
+        # Round 4: Option Trading
+        # Symbol 7: COCONUT, 8: COCONUT_COUPON
+        symbol_underlying = self.symbols[7]
+        symbol_option = self.symbols[8]
+        option_trading = OptionTrading(state, config_p[symbol_underlying],
+                                       config_p[symbol_option], config_s[symbol_underlying])
+        self.store_data(symbol_underlying, option_trading.iv, option_trading.max_window_size)  # update data
+        option_trading.rolling_iv_z_score(self.data[symbol_underlying])
+        result[symbol_underlying], result[symbol_option] = option_trading.aggregate_orders()
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)
