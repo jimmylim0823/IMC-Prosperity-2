@@ -383,6 +383,16 @@ class BasketTrading:
         return self.basket.orders
 
 
+class OptionTrading:
+    def __init__(self, state: TradingState,
+                 underlying_config: dict, option_config: dict, strategy_config: dict):
+        # initialize underlying and option as Strategy Object
+        self.underlying = Strategy(state, underlying_config)
+        self.option = Strategy(state, option_config)
+
+        # config option specification
+        self>>>DFDFdddd
+
 class Trader:
     """
     Class containing data and sending and receiving data with the trading server

@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="End of round 3">
-      <change afterPath="$PROJECT_DIR$/round_4.py" afterDir="false" />
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="Round 4">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/round_4.py" beforeDir="false" afterPath="$PROJECT_DIR$/round_4.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -385,7 +385,23 @@
       <option name="project" value="LOCAL" />
       <updated>1713492349298</updated>
     </task>
-    <option name="localTasksCounter" value="39" />
+    <task id="LOCAL-00039" summary="End of round 3">
+      <option name="closed" value="true" />
+      <created>1713617371632</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1713617371632</updated>
+    </task>
+    <task id="LOCAL-00040" summary="Round 4">
+      <option name="closed" value="true" />
+      <created>1713617387553</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1713617387553</updated>
+    </task>
+    <option name="localTasksCounter" value="41" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -400,7 +416,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Update Logger" />
     <MESSAGE value="am strategy" />
     <MESSAGE value="am scratch" />
     <MESSAGE value="am base mm strategy" />
@@ -425,6 +440,7 @@
     <MESSAGE value="prototype" />
     <MESSAGE value="Finish Basket Trading" />
     <MESSAGE value="End of round 3" />
-    <option name="LAST_COMMIT_MESSAGE" value="End of round 3" />
+    <MESSAGE value="Round 4" />
+    <option name="LAST_COMMIT_MESSAGE" value="Round 4" />
   </component>
 </project>
