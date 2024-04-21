@@ -526,7 +526,8 @@ class OptionTrading:
         :return: List of orders generated for underlying
         """
         print(f"{self.underlying.symbol} Current Position {self.underlying.position}")
-        self.delta_hedge()
+        # use volatility reversion as a signal to trade underlying same direction
+        self.delta_hedge(target_delta=2 * self.delta * self.option.expected_position)
         return self.underlying.orders
 
 
@@ -688,7 +689,7 @@ class Trader:
         self.store_data(symbol_underlying, option_trading.iv, option_trading.max_window_size)  # update data
         option_trading.rolling_iv_z_score(self.data[symbol_underlying])  # update z score
         result[symbol_option] = option_trading.aggregate_option_orders()
-        result[symbol_underlying] = option_trading.aggregate_underlying_orders()  # simultaneously hedge exp. delta
+        result[symbol_underlying] = option_trading.aggregate_underlying_orders()  # trade same on direction
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)
