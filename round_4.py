@@ -688,8 +688,8 @@ class Trader:
                                        config_p[symbol_option], config_s[symbol_underlying])
         self.store_data(symbol_underlying, option_trading.iv, option_trading.max_window_size)  # update data
         option_trading.rolling_iv_z_score(self.data[symbol_underlying])  # update z score
-        result[symbol_option] = option_trading.aggregate_option_orders()
-        result[symbol_underlying] = option_trading.aggregate_underlying_orders()  # trade same on direction
+        result[symbol_option] = option_trading.aggregate_option_orders()  # trade option with iv mean reversion
+        result[symbol_underlying] = option_trading.aggregate_underlying_orders()  # trade with same direction
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)
