@@ -447,20 +447,6 @@ class OptionTrading:
         d2_value = d1_value - sigma * self.root_tau
         return d1_value, d2_value
 
-    def delta_hedge(self, target_delta: float = 0.0):
-        """
-        Generate order to hedge delta exposure of portfolio
-
-        :param target_delta: (float) target delta of portfolio after adjusting
-        """
-        current_delta = self.delta * self.option.position + self.underlying.position
-        qty = int(target_delta - current_delta)
-        hedge_quantity = min(self.underlying.bid_volume, qty) if qty > 0 else max(self.underlying.ask_volume, qty)
-        order_price = self.underlying.worst_ask if hedge_quantity > 0 else self.underlying.worst_bid
-        if hedge_quantity != 0:
-            self.underlying.orders.append(Order(self.underlying.symbol, order_price, hedge_quantity))
-            print(f"Delta Hedge {hedge_quantity} X @ {order_price}")
-
     def rolling_iv_z_score(self, data: deque):
         """
         Calculate and update rolling z score of implied volatility
@@ -478,27 +464,49 @@ class OptionTrading:
         Pyramid position with respect to z-score value when over threshold.
         """
         clip_z = min(self.iv_zscore, self.max_z) if self.iv_zscore > 0 else max(self.iv_zscore, -self.max_z)
-        # consider triangle vs trapezoid distribution
         target_position = int(-self.option_limit * clip_z / self.max_z)
         qty = target_position - self.option.position
         order_quantity = min(self.option.bid_volume, qty) if qty > 0 else max(self.option.ask_volume, qty)
         order_price = self.option.worst_ask if order_quantity > 0 else self.option.worst_bid
         if order_quantity != 0 and abs(self.iv_zscore) > self.min_z:
             self.option.orders.append(Order(self.option.symbol, order_price, order_quantity))
-            print(f"IV: {self.iv:.2f} Z-Score {self.iv_zscore:.4f} Take {order_quantity} X @ {order_price}")
+            print(f"IV: {self.iv:.4f} Z-Score {self.iv_zscore:.2f} Take {order_quantity} X @ {order_price}")
 
-    def aggregate_orders(self) -> Tuple[List[Order], List[Order]]:
+    def delta_hedge(self, target_delta: float = 0.0):
         """
-        Aggregate all orders from option trading strategies
+        Generate order to hedge delta exposure of portfolio
 
-        :rtype: Tuple[List[Order], List[Order]]
+        :param target_delta: (float) target delta of portfolio after adjusting
+        """
+        current_delta = self.delta * self.option.position + self.underlying.position
+        qty = int(target_delta - current_delta)
+        hedge_quantity = min(self.underlying.bid_volume, qty) if qty > 0 else max(self.underlying.ask_volume, qty)
+        order_price = self.underlying.worst_ask if hedge_quantity > 0 else self.underlying.worst_bid
+        if hedge_quantity != 0:
+            self.underlying.orders.append(Order(self.underlying.symbol, order_price, hedge_quantity))
+            print(f"Delta Hedge {hedge_quantity} X @ {order_price}")
+
+    def aggregate_option_orders(self) -> List[Order]:
+        """
+        Aggregate orders for underlying from option trading strategies
+
+        :rtype: List[Order]
         :return: List of orders generated for underlying and option
+        """
+        print(f"{self.option.symbol} Current Position {self.option.position}")
+        self.iv_mean_reversion()
+        return self.option.orders
+
+    def aggregate_underlying_orders(self) -> List[Order]:
+        """
+        Aggregate orders for underlying from option trading strategies
+
+        :rtype: List[Order]
+        :return: List of orders generated for underlying
         """
         print(f"{self.underlying.symbol} Current Position {self.underlying.position}")
         self.delta_hedge()
-        print(f"{self.option.symbol} Current Position {self.option.position}")
-        self.iv_mean_reversion()
-        return self.underlying.orders, self.option.orders
+        return self.underlying.orders
 
 
 class Trader:
@@ -605,12 +613,12 @@ class Trader:
                 self.data[symbol].popleft()
         self.data[symbol].append(value)
 
-    def run(self, state: TradingState):
+    def run(self, state: TradingState) -> Tuple[Dict[Symbol, List[Order]], int, str]:
         """
         Trading algorithm that will be iterated for every timestamp
 
         :param state: (TradingState) State of each timestamp
-        :return: result, conversions, traderData: (Tuple[Tuple[Dict[Symbol, List[Order]], int, str])
+        :return: result, conversions, traderData: (Tuple[[Dict[Symbol, List[Order]], int, str])
         Results (dict of orders, conversion number, and data) of algorithms to send to the server
         """
         # restore data from traderData of last timestamp
@@ -657,8 +665,9 @@ class Trader:
         option_trading = OptionTrading(state, config_p[symbol_underlying],
                                        config_p[symbol_option], config_s[symbol_underlying])
         self.store_data(symbol_underlying, option_trading.iv, option_trading.max_window_size)  # update data
-        option_trading.rolling_iv_z_score(self.data[symbol_underlying])
-        result[symbol_underlying], result[symbol_option] = option_trading.aggregate_orders()
+        option_trading.rolling_iv_z_score(self.data[symbol_underlying])  # update z score
+        result[symbol_option] = option_trading.aggregate_option_orders()
+        result[symbol_underlying] = option_trading.aggregate_underlying_orders()
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)

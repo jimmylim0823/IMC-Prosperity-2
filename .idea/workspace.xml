@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="Round 4">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="Round 4 base code">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/round_4.py" beforeDir="false" afterPath="$PROJECT_DIR$/round_4.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/trader_logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/trader_logger.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -409,7 +410,15 @@
       <option name="project" value="LOCAL" />
       <updated>1713617875886</updated>
     </task>
-    <option name="localTasksCounter" value="42" />
+    <task id="LOCAL-00042" summary="Round 4 base code">
+      <option name="closed" value="true" />
+      <created>1713640818391</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1713640818391</updated>
+    </task>
+    <option name="localTasksCounter" value="43" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -424,7 +433,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="am strategy" />
     <MESSAGE value="am scratch" />
     <MESSAGE value="am base mm strategy" />
     <MESSAGE value="round 1" />
@@ -449,6 +457,7 @@
     <MESSAGE value="Finish Basket Trading" />
     <MESSAGE value="End of round 3" />
     <MESSAGE value="Round 4" />
-    <option name="LAST_COMMIT_MESSAGE" value="Round 4" />
+    <MESSAGE value="Round 4 base code" />
+    <option name="LAST_COMMIT_MESSAGE" value="Round 4 base code" />
   </component>
 </project>
