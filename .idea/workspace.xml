@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="prevent error from 0 quantity and empty book">
+    <list default="true" id="346472b1-5e98-4b4c-8b19-e9d2acca383b" name="Changes" comment="optimized parameter">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/round_4.py" beforeDir="false" afterPath="$PROJECT_DIR$/round_4.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/trader_logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/trader_logger.py" afterDir="false" />
@@ -434,7 +434,15 @@
       <option name="project" value="LOCAL" />
       <updated>1713684475695</updated>
     </task>
-    <option name="localTasksCounter" value="45" />
+    <task id="LOCAL-00045" summary="optimized parameter">
+      <option name="closed" value="true" />
+      <created>1713698000091</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1713698000091</updated>
+    </task>
+    <option name="localTasksCounter" value="46" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -449,7 +457,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="round 1" />
     <MESSAGE value="fixed all problems regarding stop loss" />
     <MESSAGE value="optimize parameter" />
     <MESSAGE value="prevent position exceeding" />
@@ -474,6 +481,7 @@
     <MESSAGE value="Round 4 base code" />
     <MESSAGE value="Round 4 update" />
     <MESSAGE value="prevent error from 0 quantity and empty book" />
-    <option name="LAST_COMMIT_MESSAGE" value="prevent error from 0 quantity and empty book" />
+    <MESSAGE value="optimized parameter" />
+    <option name="LAST_COMMIT_MESSAGE" value="optimized parameter" />
   </component>
 </project>
