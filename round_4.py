@@ -596,12 +596,12 @@ class Trader:
                                            'CARRY': 2.0},
                            'COCONUT': {'TYPE': 'CALL',
                                        'STRIKE': 10000,
-                                       'MATURITY': 247,
-                                       'TRADING_DAYS': 246,
-                                       'MIN_WINDOW_SIZE': 10,
-                                       'MAX_WINDOW_SIZE': 100,
-                                       'MIN_Z': 1.0,
-                                       'MAX_Z': 2.0}
+                                       'MATURITY': 246,
+                                       'TRADING_DAYS': 250,
+                                       'MIN_WINDOW_SIZE': 200,
+                                       'MAX_WINDOW_SIZE': 300,
+                                       'MIN_Z': 1.5,
+                                       'MAX_Z': 1.5}
                            }
               }
 
