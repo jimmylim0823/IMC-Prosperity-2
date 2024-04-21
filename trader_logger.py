@@ -139,16 +139,32 @@ class Strategy:
         self.asks = OrderedDict(state.order_depths[self.symbol].sell_orders)
 
         # build order book features
-        self.best_bid = max(self.bids.keys())
-        self.best_ask = min(self.asks.keys())
-        self.worst_bid = min(self.bids.keys())
-        self.worst_ask = max(self.asks.keys())
+        try:
+            self.best_bid = max(self.bids.keys())
+            self.worst_bid = min(self.bids.keys())
+        except ValueError:
+            self.best_bid = min(self.asks.keys())  # prevent data corruption from empty bid
+            self.worst_bid = max(self.asks.keys())
+
+        try:
+            self.best_ask = min(self.asks.keys())
+            self.worst_ask = max(self.asks.keys())
+        except ValueError:
+            self.best_ask = min(self.bids.keys())
+            self.worst_ask = max(self.bids.keys())
+
         self.bid_volume = sum(self.bids.values())  # sum of all quantities of bids
         self.ask_volume = sum(self.asks.values())
         self.bid_sweep = sum(p * q for p, q in self.bids.items())  # amount needed to sweep all bids
         self.ask_sweep = sum(p * q for p, q in self.asks.items())
-        self.bid_vwap = self.bid_sweep / self.bid_volume  # volume weighted average price (vwap) of bids
-        self.ask_vwap = self.ask_sweep / self.ask_volume
+        try:
+            self.bid_vwap = self.bid_sweep / self.bid_volume  # volume weighted average (VWAP) of bids
+        except ZeroDivisionError:
+            self.bid_vwap = self.worst_bid  # some occurrence of zero volume
+        try:
+            self.ask_vwap = self.ask_sweep / self.ask_volume
+        except ZeroDivisionError:
+            self.ask_vwap = self.worst_ask
         self.mid_vwap = (self.bid_vwap + self.ask_vwap) / 2  # de-noised mid-price
 
         # initialize variables for orders
