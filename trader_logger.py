@@ -764,20 +764,20 @@ class Trader:
         # Symbol 0: AMETHYSTS (Fixed Fair Value Market Making)
         symbol = self.symbols[0]
         fixed_mm = MarketMaking(state, config_p[symbol], config_s[symbol])
-        # result[symbol] = fixed_mm.aggregate_orders()
+        result[symbol] = fixed_mm.aggregate_orders()
 
         # Symbol 1: STARFRUIT (Linear Regression Market Making)
         symbol = self.symbols[1]
         lr_mm = LinearRegressionMM(state, config_p[symbol], config_s[symbol])
         self.store_data(lr_mm.symbol, lr_mm.mid_vwap, lr_mm.max_window_size)  # update data
         lr_mm.predict_price(self.data[symbol])  # update fair value
-        # result[symbol] = lr_mm.aggregate_orders()
+        result[symbol] = lr_mm.aggregate_orders()
 
         # Round 2: OTC-Exchange Arbitrage
         # Symbol 2: ORCHIDS
         symbol = self.symbols[2]
         otc_arb = OTCArbitrage(state, config_p[symbol], config_s[symbol])
-        # result[symbol], conversions = otc_arb.aggregate_orders_conversions()
+        result[symbol], conversions = otc_arb.aggregate_orders_conversions()
 
         # Round 3: Basket Trading
         # Symbol 3: GIFT_BASKET, 4 ~ 6: CHOCOLATE, STRAWBERRIES, ROSES
@@ -785,7 +785,7 @@ class Trader:
         symbols_constituent = [self.symbols[i] for i in range(4, 7)]
         basket_trading = BasketTrading(state, config_p[symbol_basket],
                                        {s: config_p[s] for s in symbols_constituent}, config_s[symbol_basket])
-        # result[symbol_basket] = basket_trading.aggregate_basket_orders()
+        result[symbol_basket] = basket_trading.aggregate_basket_orders()
 
         # Round 4: Option Trading
         # Symbol 7: COCONUT, 8: COCONUT_COUPON
