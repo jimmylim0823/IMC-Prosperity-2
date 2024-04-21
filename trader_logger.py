@@ -591,12 +591,15 @@ class OptionTrading:
         Generate order for implied volatility mean reversion strategy by market taking.\n
         Pyramid position with respect to z-score value when over threshold.
         """
+        # clip out z-score so that if the absolute value exceeds max_z its capped to max_z
         clip_z = min(self.iv_zscore, self.max_z) if self.iv_zscore > 0 else max(self.iv_zscore, -self.max_z)
+        # target position is proportion of z-score to max_z reversed (mean reversion)
         target_position = int(-self.option_limit * clip_z / self.max_z)
-        qty = target_position - self.option.position
+        qty = target_position - self.option.position  # calculate required adjustment in position
         order_quantity = min(self.option.bid_volume, qty) if qty > 0 else max(self.option.ask_volume, qty)
         order_price = self.option.worst_ask if order_quantity > 0 else self.option.worst_bid
         if order_quantity != 0 and abs(self.iv_zscore) > self.min_z:
+            #  only enter with z-score over signal threshold of min_z
             self.option.orders.append(Order(self.option.symbol, order_price, order_quantity))
             logger.print(f"IV: {self.iv:.4f} Z-Score {self.iv_zscore:.2f} Take {order_quantity} X @ {order_price}")
             self.option.expected_position += order_quantity
@@ -607,6 +610,7 @@ class OptionTrading:
 
         :param target_delta: (float) target delta of portfolio after adjusting
         """
+        # try to hedge delta simultaneously based on expected option position and hedge any remaining open delta
         current_delta = self.delta * self.option.expected_position + self.underlying.position
         qty = int(target_delta - current_delta)
         hedge_quantity = min(self.underlying.bid_volume, qty) if qty > 0 else max(self.underlying.ask_volume, qty)
@@ -796,7 +800,7 @@ class Trader:
         self.store_data(symbol_underlying, option_trading.iv, option_trading.max_window_size)  # update data
         option_trading.rolling_iv_z_score(self.data[symbol_underlying])  # update z score
         result[symbol_option] = option_trading.aggregate_option_orders()
-        result[symbol_underlying] = option_trading.aggregate_underlying_orders()
+        result[symbol_underlying] = option_trading.aggregate_underlying_orders()  # simultaneously hedge exp. delta
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)
