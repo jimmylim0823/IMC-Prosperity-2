@@ -679,7 +679,7 @@ class Trader:
                     signal_sell = -quantity * beta_sell * r2_sell
                     temp.append(signal_buy + signal_sell)
             signal = sum(temp) / len(temp) if temp else 0.0
-        return signal * 2
+        return signal
 
     def run(self, state: TradingState) -> Tuple[Dict[Symbol, List[Order]], int, str]:
         """
