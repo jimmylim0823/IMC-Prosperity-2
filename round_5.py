@@ -578,7 +578,8 @@ class Trader:
                                          'SL_INVENTORY': 20,
                                          'SL_SPREAD': 1,
                                          'MM_SPREAD': 2,
-                                         'ORDER_SKEW': 1.0},
+                                         'ORDER_SKEW': 1.0,
+                                         'SIGNAL_SCALE': 1.0},
                            'STARFRUIT': {'FAIR_VALUE': 5000.0,
                                          'SL_INVENTORY': 10,
                                          'SL_SPREAD': 1,
@@ -586,7 +587,8 @@ class Trader:
                                          'ORDER_SKEW': 1.0,
                                          'MIN_WINDOW_SIZE': 5,
                                          'MAX_WINDOW_SIZE': 10,
-                                         'PREDICT_SHIFT': 1},
+                                         'PREDICT_SHIFT': 1,
+                                         'SIGNAL_SCALE': 1.0},
                            'ORCHIDS': {'EXP_STORAGE_TIME': 1,
                                        'MIN_EDGE': 1.0,
                                        'MM_EDGE': 1.5},
@@ -607,8 +609,8 @@ class Trader:
                                        'TRADING_DAYS': 250,
                                        'MIN_WINDOW_SIZE': 200,
                                        'MAX_WINDOW_SIZE': 300,
-                                       'MIN_Z': 1.5,
-                                       'MAX_Z': 1.5}
+                                       'MIN_Z': 1.3,
+                                       'MAX_Z': 1.3}
                            }
               }
 
@@ -673,13 +675,20 @@ class Trader:
                     quantity = trade.quantity
                     # config tuple is (beta coefficient, R-Squared) for linear regression
                     # linear regression model: (P/L until next trade) = beta * signed_trade_quantity
-                    beta_buy, r2_buy = configs[trade.buyer]
-                    signal_buy = quantity * beta_buy * r2_buy
-                    beta_sell, r2_sell = configs[trade.seller]
-                    signal_sell = -quantity * beta_sell * r2_sell
+                    if trade.buyer in configs:
+                        beta_buy, r2_buy = configs[trade.buyer]
+                        signal_buy = quantity * beta_buy * r2_buy
+                    else:
+                        signal_buy = 0.0
+
+                    if trade.seller in configs:
+                        beta_sell, r2_sell = configs[trade.seller]
+                        signal_sell = -quantity * beta_sell * r2_sell
+                    else:
+                        signal_sell = 0.0
                     temp.append(signal_buy + signal_sell)
             signal = sum(temp) / len(temp) if temp else 0.0
-        return signal
+        return signal * self.config["STRATEGY"][product]["SIGNAL_SCALE"]
 
     def run(self, state: TradingState) -> Tuple[Dict[Symbol, List[Order]], int, str]:
         """
@@ -704,7 +713,7 @@ class Trader:
         # Symbol 0: AMETHYSTS (Fixed Fair Value Market Making)
         symbol = self.symbols[0]
         fixed_mm = MarketMaking(state, config_p[symbol], config_s[symbol])
-        # fixed_mm.fair_value += self.trader_signal(state, symbol)  # round 5 trader signal
+        fixed_mm.fair_value += self.trader_signal(state, symbol)  # round 5 trader signal
         result[symbol] = fixed_mm.aggregate_orders()
 
         # Symbol 1: STARFRUIT (Linear Regression Market Making)
@@ -719,7 +728,7 @@ class Trader:
         # Symbol 2: ORCHIDS
         symbol = self.symbols[2]
         otc_arb = OTCArbitrage(state, config_p[symbol], config_s[symbol])
-        # result[symbol], conversions = otc_arb.aggregate_orders_conversions()
+        result[symbol], conversions = otc_arb.aggregate_orders_conversions()
 
         # Round 3: Basket Trading
         # Symbol 3: GIFT_BASKET, 4 ~ 6: CHOCOLATE, STRAWBERRIES, ROSES
@@ -727,7 +736,7 @@ class Trader:
         symbols_constituent = [self.symbols[i] for i in range(4, 7)]
         basket_trading = BasketTrading(state, config_p[symbol_basket],
                                        {s: config_p[s] for s in symbols_constituent}, config_s[symbol_basket])
-        # result[symbol_basket] = basket_trading.aggregate_basket_orders()
+        result[symbol_basket] = basket_trading.aggregate_basket_orders()
 
         # Round 4: Option Trading
         # Symbol 7: COCONUT, 8: COCONUT_COUPON
@@ -737,8 +746,8 @@ class Trader:
                                        config_p[symbol_option], config_s[symbol_underlying])
         self.store_data(symbol_underlying, option_trading.iv, option_trading.max_window_size)  # update data
         option_trading.rolling_iv_z_score(self.data[symbol_underlying])  # update z score
-        # result[symbol_option] = option_trading.aggregate_option_orders()  # trade option with iv mean reversion
-        # result[symbol_underlying] = option_trading.aggregate_underlying_orders()  # trade with same direction
+        result[symbol_option] = option_trading.aggregate_option_orders()  # trade option with iv mean reversion
+        result[symbol_underlying] = option_trading.aggregate_underlying_orders()  # trade with same direction
 
         # Save Data to traderData and pass to next timestamp
         traderData = jsonpickle.encode(self.data, keys=True)
