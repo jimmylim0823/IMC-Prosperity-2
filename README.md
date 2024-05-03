@@ -1,5 +1,7 @@
-
 # IMC-Prosperity-2024, Y-FoRM
+- Prosperity is 15-day long trading competition hosted by IMC Trading, including algorithmic trading and manual trading challenge.
+- The virtual market is an utopian archipelago where major currency is SeaShells and products are Starfruit, Strawberries, etc.
+- For algorithmic trading challenge, python file will be submitted to trade against other bots.
 
 ## Major Reference Links
 
