@@ -1,17 +1,21 @@
 # IMC-Prosperity-2024, Y-FoRM
+## What is IMC Prosperity?
 - Prosperity is 15-day long trading competition hosted by IMC Trading, including algorithmic trading and manual trading challenge.
 - The virtual market is an utopian archipelago where major currency is SeaShells and products are Starfruit, Strawberries, etc.
-- For algorithmic trading challenge, python file will be submitted to trade against other bots.
+- For algorithmic trading challenge, python file will be submitted to trade against other bots on limit order book.
+- This year's theme included market making, OTC trading, basket trading and options trading.
+- For manual trading challenge, puzzle on trading decision is given with some connection to math and game theory.
 
 ## Major Reference Links
 
-- Official Homepage of IMC: [https://prosperity.imc.com](https://prosperity.imc.com)
-- Official Notion of IMC: [https://imc-prosperity.notion.site/Prosperity-2-Wiki-fe650c0292ae4cdb94714a3f5aa74c85](https://imc-prosperity.notion.site/Prosperity-2-Wiki-fe650c0292ae4cdb94714a3f5aa74c85)
-- special thanks to jmerle : visualizer for results of submissions and local backtests (available online at [jmerle.github.io/imc-prosperity-2-visualizer/](https://jmerle.github.io/imc-prosperity-2-visualizer/)).
+- [IMC Prosperity](https://prosperity.imc.com)
+- [Prosperity Wiki](https://imc-prosperity.notion.site/Prosperity-2-Wiki-fe650c0292ae4cdb94714a3f5aa74c85)
+- Special thanks to [jmerle](https://github.com/jmerle) for contributing open source tools: [Visualizer](https://jmerle.github.io/imc-prosperity-2-visualizer/) and [Backtester](https://github.com/jmerle/imc-prosperity-2-backtester/tree/master).
+  
+---
 
-#### Final Rank: 189th overall (top 2%), 5th in Korea.
-
-### Round Results
+## Results
+### Final Rank: 189th overall (top 2%), 5th in Korea.
 
 | Rank    | Overall | Manual | Algorithmic | Country |
 | ------- | ------- | ------ | ----------- | ------- |
@@ -32,39 +36,52 @@
 ---
 
 ## Team Y-FoRM
+We are undergraduate students from Yonsei University, with 2 industrial engineering major and 1 economics major.  
+Also as the name of our team suggests, we are members of financial engineering and risk management club [Y-FoRM](https://yform.co.kr/).
 
-Yonsei Forum of Risk Management (Y-FoRM) algorithms in IMC Prosperity 2024!
-
-- Ji Seob Lim
-- Seong Yun Cho
-- Sang Hyeon Park
+- Ji Seob Lim [LinkedIn](https://www.linkedin.com/in/jimmylim0823/)
+- Seong Yun Cho [LinkedIn](https://www.linkedin.com/in/seongyun0727/)
+- Sang Hyeon Park [LinkedIn](https://www.linkedin.com/in/sang-hyeon-park-84612a271/)
 
 ---
 
 ## Round Summaries
 
-### Common Content for All Rounds `<br>`
-
-1. A kind of individual turn system. `<br>`
-2. Orders are cancelled at every point in time, so re-processed to next timestamp. `<br>`
-3. Based on AWS, so performance is limited. Need to simplify operations.(At most, linear regression) `<br>`
-4. If server goes down(It happens sometimes), they might give you additional 24hours for given round.
+### Some common consideration for all rounds
+1. Though we have an order book, it operates by turn (think of board games) rather than simultaneously.
+1. Orders are cancelled at every point in time, so re-processed to next timestamp.
+1. All products have different position limit, and position limit, trading volume and notional value decideds target PnL.
+1. If we the order potentially hits the positon limit, order will be canceled, so we should cap our order sizes properly.
+1. Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue. (At most, linear/logistic regression)
+1. AWS does not guarantee class variables to be stored, but we can pass serialized data across timestamps thourgh `traderData`. 
+1. If Prosperity server goes down for a long enough period (happend twice), they might give additional 24hours for the round.
 
 ### Tutorial Round
+We spent most of our time in tutorial understanding the mechanics of competition and structure of [algorithmic trading codes](https://imc-prosperity.notion.site/Writing-an-Algorithm-in-Python-658e233a26e24510bfccf0b1df647858). In the end, we decided to market make and take around the fair value, with stop loss considering the position limit.
 
-We spend most of our time in tutorial, understanding how the competition was going and how the algorithm worked.
-At the end, we made our mind to deal with this round with Market Making and Market Taking by considering limit position.
-There were two products that we was going to trade.
+**Some Observations**
+1. For both products, the order book mainly had two agents:
+    - one very-passive market maker: large and symmetric order with price of +- 5 from mid-price (always worst bid/ask)
+    - one active trader (noise or informed): undercutting the +-5 orders with smaller and asymetric size
+1. Position limit does do some work in inventory management against adverse selection
+    - The maximum allowed order size of a side decreases as inventory piles up in such direction due to the trend.
+    - We could further reduce the size of order in disadvantageous side to protect ourself from the trend.
 
- **Amethesis"** `<br>`
+**General Market Making Logic**
+1. Update the fair value of product
+1. Scratch by market taking for under or par valued orders (but not against worst bid/ask)
+1. Stop loss if inventory piles over certain level (but not against worst bid/ask)
+1. Market make around the fair value with maximum possible amount deducted by skew of order size determined by inventory
 
-1. The fair value of amethesis was very clear (10000) `<br>`
-2. So it was easier than starfruit to Market Making and Taking given its fair value `<br>`
+ **Amethesis"**
+1. The fair value is clearly 10000 and the mid-price is very stable (10000 +- 2), so we used fixed fair value of 10000.
+1. Apply the market making logic above directly as there is no need for update of fair value.
 
- **"Starfruit"** `<br>`
+ **Starfruit**
 
-1. A price of it was not stationary, so we tried its fair value by using rolling linear regression.
-2. Searched various periods to predict its fair value by heatmap and multi plot.
+1. Prices have trends (strong drift) and the trend may invert during the day.
+1. We used rolling linear regression $P_t=\beta_0+\beta_1 t$ to predict the price of next timestamp $\hat{P_{t+1}}=\hat{\beta_0}+\hat{\beta_0}(t+1)$.
+1. We examined various periods to predict its fair value by heatmap and multi plot.
 
 ### Round 1: Market Making(MM) `<br>`
 
