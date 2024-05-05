@@ -94,7 +94,7 @@ We spent most of our time in tutorial understanding the mechanics of competition
 - We made very high sharpe ratio PnL with almost 0 drawdown. The profit for both product was almost the same, and we managed to maintain profit per round for both product until end of the competition.
 
 **Manual Trading Challege**  
-Round 1 was on probability distribution and optimization, we misunderstood the problem missing the answer very badly. The size of potential from manual trading was way bigger than that of algorithmic trading, so we had a slow start and a long ladder to climb up.
+Round 1 was on probability distribution and optimization, we misunderstood the problem missing the answer very badly. We had to bid to maximize our profit give the probability distribution of reserve price which basically is the willingness to sell at our bid. The size of potential from manual trading was way bigger than that of algorithmic trading, so we had a slow start and a long ladder to climb up.
 
 ### Round 2: OTC Trading
 - The largest challenge for us and the entire community was to comprehend the intentionally vague specification of the product `ORCHIDS` from [Prosperity Wiki](https://imc-prosperity.notion.site/Round-2-accf8ab79fdf4ce5a558e49ecf83b122) and [Prosperity TV](https://www.youtube.com/watch?v=k4mV5XZZM-I).
@@ -127,6 +127,11 @@ Round 3 was about game theory, where we choose few grid from a map to search for
 
 ### Round 4: Option Trading
 - `COCONUT` is an underlying asset and `COCONUT_COUPON` is an European call option with strike price of 10000 and time to maturity 250 days(rounds).
+- Using our basic knowledge to option greeks, pricing of long-term options are mostly affected by change in volatility (besides the obvious change in underlying price).
+- Considering limitation of computing power, we used analytic estimator from [Hallerbach (2004)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=567721) to calculate implied volatility. We found out that IV is highly mean-reverting intraday, so we decided to profit from vega trading based on rolling z-score of IV.
+- We first tried a pyramid-style grid trading on IV mean reversion. We found out the mean-reverting signal is too weak for lower z-score, so we modified our trading style to trapezoid style where we cut off lower part of the pyramid below the threshold. Surprisingly, just all-in at lower z-score (near 1.5) signal was most profitable.
+- We were delta hedging initially, and this led to constant loss. Our gamma was long and short for similar proportion of the time, but due to lower gamma of long-term option, all we had to pay was the spread and some loss by short gamma. We had to decide hedge, no-hedge, or flip the hedge. We decided to flip the hedge, which is trading underlying using IV level as a signal.
+- During backtest, our algo profited moderately (30~40K) for the first two day and very lucratively (170~180K)for the third day (on par with Discord benchmark). This was due to high vol-of-vol of the third day. We hoped we would have high vol-of-of again, and thankfully we earned near 150K only trading the option. One issue was that our PnL for algo trading was missing in the first and thankfully moderators ran our algo again, resulting in near 300K profit which was our single-round best. Unfortunately, this alpha of vega trading from high vol-of-vol was weakened in the last round.
 
 **Manual Trading Challege**  
 Round 4 is similar to Round 1, but some game theory added. The probability distribution of willingness to buy is a function of average bids of all the participants. We took a conservative approach and didn't go too far away from the best answer.
