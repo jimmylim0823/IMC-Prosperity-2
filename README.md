@@ -3,7 +3,7 @@
 - Prosperity is 15-day long trading competition hosted by IMC Trading, including algorithmic trading and manual trading challenge.
 - The virtual market is an utopian archipelago where major currency is SeaShells and products are Starfruit, Strawberries, etc.
 - For algorithmic trading challenge, python file will be submitted to trade against other bots on limit order book.
-- This year's theme included market making, OTC trading, basket trading and options trading.
+- This year's theme included market making, OTC trading, basket trading and options trading, deanonymized trades.
 - For manual trading challenge, puzzle on trading decision is given with some connection to math and game theory.
 
 ## Major Reference Links
@@ -55,6 +55,8 @@ Also as the name of our team suggests, we are members of financial engineering a
 1. Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue. (At most, linear/logistic regression)
 1. AWS does not guarantee class variables to be stored, but we can pass serialized data across timestamps thourgh `traderData`. 
 1. If Prosperity server goes down for a long enough period (happend twice), they might give additional 24hours for the round.
+1. The products in previous round will stay in the market, but marke regime may change. Continous tweaking of model is needed.
+
 
 ### Tutorial Round
 We spent most of our time in tutorial understanding the mechanics of competition and structure of [algorithmic trading codes](https://imc-prosperity.notion.site/Writing-an-Algorithm-in-Python-658e233a26e24510bfccf0b1df647858). In the end, we decided to market make and take around the fair value, with stop loss considering the position limit.
@@ -81,25 +83,27 @@ We spent most of our time in tutorial understanding the mechanics of competition
 
 1. Prices have trends (strong drift) and the trend may invert during the day.
 1. We used rolling linear regression $P_t=\beta_0+\beta_1 t$ to predict the price of next timestamp $\hat{P_{t+1}}=\hat{\beta_0}+\hat{\beta_0}(t+1)$.
+1. Utilizing SOBI (Static Order Book Imbalance), we stored mid-vwap of order book rather than mid-price into a queue for data to regress.
 1. We examined various rolling window size to predict its fair value using heatmap.
 
-### Round 1: Market Making(MM) `<br>`
+### Round 1: Market Making
+- Products and tasks of tutorial continued in Round 1 and we continued using market making around the fair value. We focused on optimizing the strategy with some data analytics. We also refactored our code in a more object-oriented way.
+- We have `Strategy` class which is the base class for each product. Product configuration, order book features and variables related to our orders (submission, expected position, sum of buys and sells) is defined as instance variable of the class, and will be defined for each product.  
+- `MarketMaking` class inherits `Strategy` with its instance variables and extra strategy configurations. We have `scratch_under_valued`, `stop_loss`, `market_make` method that implements the general market making logic above. Then `aggregate_orders` method calls all 3 order-generating methods and returns list of orders, which will be the input for `results[product]` in the `run` method of `Trader` class submitting the orders to the Prosperity system. Orders for `AMETHYSTS` is generaged by `MarketMaking` class in the `run` method.
+- `LinearRegressionMM` inherits `MarketMaking` with its instance variables and extra rolling regression configurations. The only extra method is `predict_price` which performs a linear regrssion and prediction with data that is stored externally in class variable of `Trader` class, while the rolling part is implemented by queuing up to max rolling size while storing the data. Orders for `STARFRUIT` is generaged by `LinearRegressionMM` class in the `run` method.
+- We made very high sharpe ratio PnL with almost 0 drawdown. The profit for both product was s
 
-The algo side of round 1 appeared to be a continuation of the tutorial round on new data.
-So we re-checked our algorithms logics and focused on reconstructing the code in a more object-oriented way.
 
-### Round 2: OTC Arbitrage Trading `<br>`
+### Round 2: OTC Trading
+- The largest challenge for us and the entire community was to comprehend the specification of the product `ORCHIDS` from [Prosperity Wiki](https://imc-prosperity.notion.site/Round-2-accf8ab79fdf4ce5a558e49ecf83b122) and [Prosperity TV](https://www.youtube.com/watch?v=k4mV5XZZM-I).
+- Price of `ORCHIDS`, according to wiki and TV, is affected by sunlight and humidity. However, the provided data had low explanatory power with unknown units making it even harder to understand. We tried analytical (building a function) and statistical (linear regression with 2 predictor, linear regression on the residual, etc.) methods which all turned out to be unsuccessful.
+- Instead, we turned our focus on arbitrage opportunity between our exchange and another OTC trading venue in the South. We could convert (close posiition) orchids that we got from our exchange (both long and short) to Seashells in the South. The OTC market have an independent bid and ask, while it is a quote-driven market and will receive conversion of any size, for price of paying transportation fee + import/export tariff. As this is some sort of a single-dealer platform, we had infinite liquidity to close our position immediately, so we would make or take from exchange and close at OTC.
+- We could enter our arbitrage position with `arbitrage_exchange_enter` which takes orders from exchange that provide direct arbitrage opportunity. The opportunity is scarace, and the risk is change in price for 1 timestamp before converting to seashelss in OTC. Thus we would only enter with arbitrage edge over `self.min_edge`.
+- We also made market with arbitrage-free pricing using OTC price + transaction cost and added some `self.mm_edge` for magin.
+- Finally, exit all open position at OTC to lock in our margin using `arbitrage_otc_exit`.
+- This was all possible due to strong negative import tariif (subsidy), and all of our trade were executed in short direction. Our infinite liquidity in OTC solved the issue with inventory stacking up in one direction, and we were able to make huge profit in Round 2. Unfortunately, this alpha disappeared from Round 3 as import subsidy dropped, and it was impossible to undercut other orders with arbitrage-free pricing. Our team and many other team only relying on arbitrage had big impact on cumulative overall PnL since this point.
 
-It was the most incomprehensible round.
-The featured product was 'Orchid', which, according to official documentation, is sensitive to variations in sunlight and humidity.
-However, the provided data was insufficient as it did not fully align with the descriptions in the document, making it challenging to use climate data as a leading or explanatory indicator for pricing. During the competition, there was significant debate on Discord among participants regarding the utility of climate data in our trading strategies. Ultimately, it was concluded that climate data was unsuitable for strategic purposes in this context. Initially, we attempted a preemptive pricing strategy based on climate data, but this approach was rejected.
-
-Instead, the main strategy shifted to focus on arbitrage in the over-the-counter (OTC) market. Unlike Round 1, Round 2 allowed for OTC trades, which introduced more dynamic strategic options due to unexpectedly favorable conditions, such as lower than anticipated import tariffs and subsidies that reduced the impact of export tariffs.
-The allowance for OTC trading meant that positions could be cleared more rapidly than in the previous round, making our approach more flexible and responsive. This strategic shift helped us to capitalize on market inefficiencies more effectively and adapt our tactics to the evolving trading environment.
-
-Manual Trading was about triangular arbitrage.
-
-### Round 3: Basket Arbitrage Trading `<br>`
+### Round 3: Basket Arbitrage Trading
 
 Round 3 introduced the GIFT_BASKET, akin to an ETF product, accompanied by detailed data on each component's price and weight within the basket. This allowed us to calculate the Net Asset Value (NAV) of the gift basket.
 
@@ -109,7 +113,7 @@ This round was particularly engaging as it mirrored real-world trading scenarios
 
 Manual trading was about game theory.
 
-### Round 4:  Call Option Trading (hedging delta and exposing to vega) `<br>`
+### Round 4:  Call Option Trading (hedging delta and exposing to vega)
 
 Round 4 was domain of call option trading, leveraging financial instruments disguised as "COCONUT" and "COCONUT_COUPON." Our strategy pivoted around a detailed application of the Black-Scholes-Merton model and focused on managing the option's Greeks, particularly delta and vega.
 
@@ -126,7 +130,7 @@ Challenges and Adjustments
 Market Sensitivity: The strategy required constant adjustment to the sensitivity parameters for the IV z-score to optimize the trading responses.
 Technical Implementations: Due to the complexity of the calculations, particularly those involving the BSM derivatives and the dynamic hedging components, significant effort was put into ensuring that the computational overhead did not hinder real-time trading responses.
 
-### Round 5: Multi-agent  `<br>`
+### Round 5: Multi-agent
 
 - In this round, the information and characteristics of the orderer are provided (i.e. multi-agent round) `<br>`
 - At this time, the use of the concept of "Market Microstructure". `<br>`
@@ -142,7 +146,7 @@ So we just modified some codes in previous round and submitted.
 
 - Among many algorithmic trading competitions, IMC Prosperity stands out due to its engaging storyline and well-designed graphics. Despite its challenges, it was an enjoyable experience throughout.
 - The unexpected server downtime extended the competition by 24 hours, causing inconvenience and disrupting schedules for many participants. Nevertheless, I would like to express my gratitude to IMC for hosting such a fascinating event.
-- I am deeply thankful to Jiseop for introducing me to this competition and encouraging participation. His initiative allowed us to explore market microstructures, CLOB, object-oriented programming, and algorithmic trading strategies extensively.
+- I am deeply thankful to Jiseob for introducing me to this competition and encouraging participation. His initiative allowed us to explore market microstructures, CLOB, object-oriented programming, and algorithmic trading strategies extensively.
 - My heartfelt thanks also go to Sanghyun, who did not give up despite the difficulties and took charge of manual trading and documenting our meetings, contributing significantly until the end.
 - Despite overlapping with exam periods, the fact that we could conduct our Zoom meetings daily past midnight for over two hours without any complaints speaks volumes about the good team spirit and the enjoyable nature of the competition.
 - If Prosperity3 is held, I definitely plan to participate again and hope that more people in Korea will also take interest and join the competition.
