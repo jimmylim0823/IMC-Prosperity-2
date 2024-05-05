@@ -93,7 +93,7 @@ We spent most of our time in tutorial understanding the mechanics of competition
 - `LinearRegressionMM` inherits `MarketMaking` with its instance variables and extra rolling regression configurations. The only extra method is `predict_price` which performs a linear regrssion and prediction with data that is stored externally in class variable of `Trader` class, while the rolling part is implemented by queuing up to max rolling size while storing the data. Orders for `STARFRUIT` is generaged by `LinearRegressionMM` class in the `run` method.
 - We made very high sharpe ratio PnL with almost 0 drawdown. The profit for both product was almost the same, and we managed to maintain profit per round for both product until end of the competition.
 
-**Manual Trading Challege**
+**Manual Trading Challege**  
 Round 1 was on probability distribution and optimization, we misunderstood the problem missing the answer very badly. The size of potential from manual trading was way bigger than that of algorithmic trading, so we had a slow start and a long ladder to climb up.
 
 ### Round 2: OTC Trading
@@ -105,7 +105,7 @@ Round 1 was on probability distribution and optimization, we misunderstood the p
 1. Finally, exit all open position at OTC to lock in our margin using `arbitrage_otc_exit`.
 - This was all possible due to strong negative import tariff (subsidy), and all of our trade were executed in short direction. Our infinite liquidity in OTC solved the issue with inventory stacking up in one direction, and we were able to make huge profit in Round 2. Unfortunately, this alpha disappeared from Round 3 as import subsidy dropped, and it was impossible to undercut other orders with arbitrage-free pricing. Our team and many other team only relying on arbitrage had huge negative impact on cumulative overall PnL since this point, and we failed to find alpha using humidity/sunlight until the end of competition.
 
-**Manual Trading Challege**
+**Manual Trading Challege**  
 Round 2 was about triangular arbitrage given the transition rate matrix. We used brute-force algorithm considering small size of the matrix.
 
 ### Round 3: Basket Arbitrage Trading
@@ -122,7 +122,7 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
    - `aggresive_stop_loss`: Take max quantity from worst bid/ask for stop loss when inventory touched stop loss inventory level
 - We had acceptable and steady profit for basket throughout competition. Nevertheless, we should have tried trading some constituents, even if market making was impossible due to small (0 or 1) spread.
 
-**Manual Trading Challege**
+**Manual Trading Challege**  
 Round 3 was about game theory, where we choose few grid from a map to search for treasure. Expedition, maximum of 3, have huge marginal cost, and we will share the pie of the treasure we found on the grid with other participants. We tried to avoid crowding in most attractive options, and took one good but not best, and two so so options.
 
 ### Round 4:  Call Option Trading (hedging delta and exposing to vega)
