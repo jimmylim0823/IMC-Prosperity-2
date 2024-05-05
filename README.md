@@ -136,7 +136,12 @@ Round 3 was about game theory, where we choose few grid from a map to search for
 **Manual Trading Challege**  
 Round 4 is similar to Round 1, but some game theory added. The probability distribution of willingness to buy is a function of average bids of all the participants. We took a conservative approach and didn't go too far away from the best answer.
 
-### Round 5: Multi-agent
+### Round 5: De-anonymized Trade Data
+- No new product was introduced in Round 5, but now name of the trader (both buyer and seleer) for market trades and own trades are visible.
+- We plotted the mid-price and labeled the timestamp where given trader bought and sold to gain some insights on each trader's characteristic.
+- We found some patterns that involves with the first character of the trader: A, R, V.
+- Trader starting with A (maybe stands for Amatuer) was really bad
+
 
 Due to delay of competition, All of us were so busy with our mid-term that we couldn't participate in round 5.
 So we just modified some codes in previous round and submitted.
