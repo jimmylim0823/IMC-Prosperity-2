@@ -126,12 +126,19 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
 Round 3 was about game theory, where we choose few grid from a map to search for treasure. Expedition, maximum of 3, have huge marginal cost, and we will share the pie of the treasure we found on the grid with other participants. We tried to avoid crowding in most attractive options, and took one good but not best, and two so so options.
 
 ### Round 4: Option Trading
+- `COCONUT` is an underlying asset and `COCONUT_COUPON` is an European call option with strike price of 10000 and time to maturity 250 days(rounds).
 
+**Manual Trading Challege**  
+Round 4 is similar to Round 1, but some game theory added. The probability distribution of willingness to buy is a function of average bids of all the participants. We took a conservative approach and didn't go too far away from the best answer.
 
 ### Round 5: Multi-agent
 
 Due to delay of competition, All of us were so busy with our mid-term that we couldn't participate in round 5.
 So we just modified some codes in previous round and submitted.
+
+
+**Manual Trading Challege**  
+Round 5 is news trading. Based on the most credible news source from north archipelago "Iceberg" (not Bloomberg), we have to allocate long and short position to tradable goods with gross position limit of 100%. We tried to take position on all products in order to reduce impact of few wrong answers. We got 5 correct 4 worng trades, but the profit from a single correct trade was able to offset all the losses from wrong trades.
 
 ---
 
