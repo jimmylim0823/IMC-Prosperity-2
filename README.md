@@ -92,27 +92,38 @@ We spent most of our time in tutorial understanding the mechanics of competition
 - `MarketMaking` class inherits `Strategy` with its instance variables and extra strategy configurations. We have `scratch_under_valued`, `stop_loss`, `market_make` method that implements the general market making logic above. Then `aggregate_orders` method calls all 3 order-generating methods and returns list of orders, which will be the input for `results[product]` in the `run` method of `Trader` class submitting the orders to the Prosperity system. Orders for `AMETHYSTS` is generaged by `MarketMaking` class in the `run` method.
 - `LinearRegressionMM` inherits `MarketMaking` with its instance variables and extra rolling regression configurations. The only extra method is `predict_price` which performs a linear regrssion and prediction with data that is stored externally in class variable of `Trader` class, while the rolling part is implemented by queuing up to max rolling size while storing the data. Orders for `STARFRUIT` is generaged by `LinearRegressionMM` class in the `run` method.
 - We made very high sharpe ratio PnL with almost 0 drawdown. The profit for both product was almost the same, and we managed to maintain profit per round for both product until end of the competition.
-- Manual trading challenge was on probability distribution and optimization, we misunderstood the problem missing the answer very badly. The size of potential from manual trading was way bigger than that of algorithmic trading, so we had a slow start and a long ladder to climb up.
+
+** Manual Trading Challenge**
+Round 1 was on probability distribution and optimization, we misunderstood the problem missing the answer very badly. The size of potential from manual trading was way bigger than that of algorithmic trading, so we had a slow start and a long ladder to climb up.
 
 ### Round 2: OTC Trading
 - The largest challenge for us and the entire community was to comprehend the intentionally vague specification of the product `ORCHIDS` from [Prosperity Wiki](https://imc-prosperity.notion.site/Round-2-accf8ab79fdf4ce5a558e49ecf83b122) and [Prosperity TV](https://www.youtube.com/watch?v=k4mV5XZZM-I).
 - Price of `ORCHIDS`, according to wiki and TV, is affected by sunlight and humidity. However, the provided data had low explanatory power with unknown units making it even harder to understand. We tried analytical (building a function) and statistical (linear regression with 2 predictor, linear regression on the residual, etc.) methods which all turned out to be unsuccessful.
-- Instead, we turned our focus on arbitrage opportunity between our exchange and another OTC trading venue in the South. We could convert (close posiition) orchids that we got from our exchange (both long and short) to Seashells in the South. The OTC market have an independent bid and ask, while it is a quote-driven market and will receive conversion of any size, for price of paying transportation fee + import/export tariff. As this is some sort of a single-dealer platform, we had infinite liquidity to close our position immediately, so we would make or take from exchange and close at OTC.
+- Instead, we turned our focus on arbitrage opportunity between our exchange and another OTC trading venue in the South. We could convert (close posiition) orchids that we got from our exchange (both long and short) to Seashells in the South. The OTC market have an independent bid and ask, while it is a quote-driven market and will receive conversion of any size, for price of paying transportation fee + import/export tariff. As this is some sort of a single-dealer platform, we had infinite liquidity to close our position immediately, so we would make or take from exchange and close at OTC. `OTCArbitrage` class includes following methods:
 1. We could enter our arbitrage position with `arbitrage_exchange_enter` which takes orders from exchange that provide direct arbitrage opportunity. The opportunity is scarace, and the risk is change in price for 1 timestamp before converting to seashelss in OTC. Thus we would only enter with arbitrage edge over `self.min_edge`.
 1. We also made market with arbitrage-free pricing using OTC price + transaction cost and added some `self.mm_edge` for magin.
 1. Finally, exit all open position at OTC to lock in our margin using `arbitrage_otc_exit`.
-- This was all possible due to strong negative import tariff (subsidy), and all of our trade were executed in short direction. Our infinite liquidity in OTC solved the issue with inventory stacking up in one direction, and we were able to make huge profit in Round 2. Unfortunately, this alpha disappeared from Round 3 as import subsidy dropped, and it was impossible to undercut other orders with arbitrage-free pricing. Our team and many other team only relying on arbitrage had big impact on cumulative overall PnL since this point.
-- Manual trading challege was about triangular arbitrage given the transition rate matrix. We used brute-force algorithm considering small size of the matrix.
+- This was all possible due to strong negative import tariff (subsidy), and all of our trade were executed in short direction. Our infinite liquidity in OTC solved the issue with inventory stacking up in one direction, and we were able to make huge profit in Round 2. Unfortunately, this alpha disappeared from Round 3 as import subsidy dropped, and it was impossible to undercut other orders with arbitrage-free pricing. Our team and many other team only relying on arbitrage had huge negative impact on cumulative overall PnL since this point, and we failed to find alpha using humidity/sunlight until the end of competition.
+
+** Manual Trading Challenge**
+Round 2 was about triangular arbitrage given the transition rate matrix. We used brute-force algorithm considering small size of the matrix.
 
 ### Round 3: Basket Arbitrage Trading
+- 'GIFT_BASKET' is an index basket equivalent of following constituents together: 4 `CHOCOLATE`, 6 `STRAWBERRIES` and a `ROSES`.
+- We found out that the basket always traded over premium over NAV made of basket constituents. We calculated z-score of the basket-NAV spread.
+- We tried stat arb between basket and constituent with z-score, but was not sucessful when we were only market taking.
+- Basket had big spread and constituents had small spreads, so we decided to only market make basket with pricing using constituents.
+- We shifted are fair value from mid-vwap of basket by adding `pricindg_shift = -demeaned_premium * scaling coefficient` where are pricing bias scaling coefficient uses quadratic sensitivity to spread z-score: `scaling_coefficient = self.alpha * abs(self.z_score) + self.beta * self.z_score ** 2`. This dynamic scaling will make `pricing_shift` approach 0 when z-score is close to 0 and give spike to the signal when z-score deviates significantly from the mean 0, when we have low alpha and high enough beta.
+- Mechanics of `aggregate_basket_orders` work similary to market making. `BasketTrading` class will generate orders for only `GIFT_BASKET`.
+1. Type of `self.basket` will be `Strategy` and type of `self.constituent` will be `Dict[Symbol: Strategy]`.
+1. `calculate_fair_value` calculates fair value of basket using basket mid-vwap, demeaned premium and spread z-score.
+1. Simmilar to Round 2, scratch, stop loss and market make basket. However, there are two difference:
+   - `scratch_under_valued(mid_vwap=True)`: Scratch under/par-valued based on mid-vwap not fair value (as we already updated our fair value)
+   - `aggresive_stop_loss`: Take max quantity from worst bid/ask for stop loss when inventory touched stop loss inventory level
+- We had acceptable and steady profit for basket throughout competition. Nevertheless, 
 
-Round 3 introduced the GIFT_BASKET, akin to an ETF product, accompanied by detailed data on each component's price and weight within the basket. This allowed us to calculate the Net Asset Value (NAV) of the gift basket.
-
-By comparing the calculated NAV with the actual basket price, we determined the premium or discount at which the basket was trading. Utilizing the z-score of this premium, we calculated the expected price shift. This price shift was then added to the current market price to establish the Fair Value of the basket. Armed with this valuation, we employed a Market Making and Taking strategy similar to the previous rounds.
-
-This round was particularly engaging as it mirrored real-world trading scenarios where ETFs do not always align perfectly in price movements with their underlying assets. The strategy not only tested our ability to quickly adapt and calculate under pressure but also allowed us to exploit these inefficiencies for potential gains.
-
-Manual trading was about game theory.
+** Manual Trading Challenge**
+Round 3 was about game theory, where we choose few grid from a map to search for treasure. Expedition, maximum of 3, have huge marginal cost, and we will share the pie of the treasure we found on the grid with other participants. We tried to avoid crowding in most attractive options, and took one good but not best, and two so so options.
 
 ### Round 4:  Call Option Trading (hedging delta and exposing to vega)
 
