@@ -140,11 +140,12 @@ Round 4 is similar to Round 1, but some game theory added. The probability distr
 - No new product was introduced in Round 5, but now name of the trader (both buyer and seleer) for market trades and own trades are visible.
 - We plotted the mid-price and labeled the timestamp where given trader bought and sold to gain some insights on each trader's characteristic.
 - We found some patterns that involves with the first character of the trader: A, R, V.
-- Trader starting with A (maybe stands for Amatuer) was really bad
-
-
-Due to delay of competition, All of us were so busy with our mid-term that we couldn't participate in round 5.
-So we just modified some codes in previous round and submitted.
+- Trader starting with A (maybe stands for Amatuer) was really bad, market taking, always trading the opposite way.
+- Trader starting with R (maybe stands for Rookie) was also bad, market taking, often trading the opposite way.
+- Trader starting with V (maybe stands for Veteran) was good, market making, mostly high frequency.
+- We checked for their direction and size of the trade, and we found their tends to be some relationship with future price movement.
+- P-value for linear regression of trade quantity to PnL was very good, but the R-squared value was not stronly promising.
+- We decided to 
 
 
 **Manual Trading Challege**  
