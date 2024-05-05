@@ -73,7 +73,7 @@ We spent most of our time in tutorial understanding the mechanics of competition
 1. Stop loss if inventory piles over certain level (but not against worst bid/ask)
 1. Market make around the fair value with maximum possible amount deducted by skew of order size determined by inventory
 
- **Amethesis"**
+ **Amethesis**
 1. The fair value is clearly 10000 and the mid-price is very stable (10000 +- 2), so we used fixed fair value of 10000.
 1. Apply the market making logic above directly as there is no need for update of fair value.
 
@@ -81,7 +81,7 @@ We spent most of our time in tutorial understanding the mechanics of competition
 
 1. Prices have trends (strong drift) and the trend may invert during the day.
 1. We used rolling linear regression $P_t=\beta_0+\beta_1 t$ to predict the price of next timestamp $\hat{P_{t+1}}=\hat{\beta_0}+\hat{\beta_0}(t+1)$.
-1. We examined various periods to predict its fair value by heatmap and multi plot.
+1. We examined various rolling window size to predict its fair value using heatmap.
 
 ### Round 1: Market Making(MM) `<br>`
 
