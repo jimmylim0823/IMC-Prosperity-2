@@ -1,4 +1,6 @@
 # IMC-Prosperity-2024, Y-FoRM
+[Link to Korean Version]()
+
 ## What is IMC Prosperity?
 - Prosperity is 15-day long trading competition hosted by IMC Trading, including algorithmic trading and manual trading challenge.
 - The virtual market is an utopian archipelago where major currency is SeaShells and products are Starfruit, Strawberries, etc.
@@ -7,7 +9,6 @@
 - For manual trading challenge, puzzle on trading decision is given with some connection to math and game theory.
 
 ## Major Reference Links
-
 - [IMC Prosperity](https://prosperity.imc.com)
 - [Prosperity Wiki](https://imc-prosperity.notion.site/Prosperity-2-Wiki-fe650c0292ae4cdb94714a3f5aa74c85)
 - Special thanks to [jmerle](https://github.com/jmerle) for contributing open source tools: [Visualizer](https://jmerle.github.io/imc-prosperity-2-visualizer/) and [Backtester](https://github.com/jmerle/imc-prosperity-2-backtester/tree/master).
@@ -48,24 +49,24 @@ Also as the name of our team suggests, we are members of financial engineering a
 ## Round Summaries
 
 ### Some common consideration for all rounds
-1. Though we have an order book, it operates by turn (think of board games) rather than simultaneously.
-1. Orders are cancelled at every point in time, so re-processed to next timestamp.
-1. All products have different position limit, and position limit, trading volume and notional value decideds target PnL.
-1. If we the order potentially hits the positon limit, order will be canceled, so we should cap our order sizes properly.
-1. Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue. (At most, linear/logistic regression)
-1. AWS does not guarantee class variables to be stored, but we can pass serialized data across timestamps thourgh `traderData`. 
-1. If Prosperity server goes down for a long enough period (happend twice), they might give additional 24hours for the round.
-1. The products in previous round will stay in the market, but marke regime may change. Continous tweaking of model is needed.
+- Though we have an order book, it operates by turn (think of board games) rather than simultaneously.
+- Orders are cancelled at every point in time, so re-processed to next timestamp.
+- All products have different position limit, and position limit, trading volume and notional value decideds target PnL.
+- If we the order potentially hits the positon limit, order will be canceled, so we should cap our order sizes properly.
+- Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue. (At most, linear/logistic regression)
+- AWS does not guarantee class variables to be stored, but we can pass serialized data across timestamps thourgh `traderData`. 
+- If Prosperity server goes down for a long enough period (happend twice), they might give additional 24hours for the round.
+- The products in previous round will stay in the market, but marke regime may change. Continous tweaking of model is needed.
 
 
 ### Tutorial Round
 We spent most of our time in tutorial understanding the mechanics of competition and structure of [algorithmic trading codes](https://imc-prosperity.notion.site/Writing-an-Algorithm-in-Python-658e233a26e24510bfccf0b1df647858). In the end, we decided to market make and take around the fair value, with stop loss considering the position limit.
 
 **Some Observations**
-1. For both products, the order book mainly had two agents:
+- For both products, the order book mainly had two agents:
     - one very-passive market maker: large and symmetric order with price of +- 5 from mid-price (always worst bid/ask)
     - one active trader (noise or informed): undercutting the +-5 orders with smaller and asymetric size
-1. Position limit does do some work in inventory management against adverse selection
+- Position limit does do some work in inventory management against adverse selection
     - The maximum allowed order size of a side decreases as inventory piles up in such direction due to the trend.
     - We could further reduce the size of order in disadvantageous side to protect ourself from the trend.
 
@@ -76,15 +77,14 @@ We spent most of our time in tutorial understanding the mechanics of competition
 1. Market make around the fair value with maximum possible amount deducted by skew of order size determined by inventory
 
 **Amethesis**
-1. The fair value is clearly 10000 and the mid-price is very stable (10000 +- 2), so we used fixed fair value of 10000.
-1. Apply the market making logic above directly as there is no need for update of fair value.
+- The fair value is clearly 10000 and the mid-price is very stable (10000 +- 2), so we used fixed fair value of 10000.
+- Apply the market making logic above directly as there is no need for update of fair value.
 
 **Starfruit**
-
-1. Prices have trends (strong drift) and the trend may invert during the day.
-1. We used rolling linear regression $P_t=\beta_0+\beta_1 t$ to predict the price of next timestamp $\hat{P_{t+1}}=\hat{\beta_0}+\hat{\beta_0}(t+1)$.
-1. Utilizing [SOBI](https://www.cis.upenn.edu/~mkearns/projects/sobi.html) (Static Order Book Imbalance), we stored mid-vwap of order book rather than mid-price into a queue for data to regress.
-1. We examined various rolling window size to predict its fair value using heatmap.
+- Prices have trends (strong drift) and the trend may invert during the day.
+- We used rolling linear regression $P_t=\beta_0+\beta_1 t$ to predict the price of next timestamp $\hat{P_{t+1}}=\hat{\beta_0}+\hat{\beta_0}(t+1)$.
+- Utilizing [SOBI](https://www.cis.upenn.edu/~mkearns/projects/sobi.html) (Static Order Book Imbalance), we stored mid-vwap of order book rather than mid-price into a queue for data to regress.
+- We examined various rolling window size to predict its fair value using heatmap.
 
 ### Round 1: Market Making
 - Products and tasks of tutorial continued in Round 1 and we continued using market making around the fair value. We focused on optimizing the strategy with some data analytics. We also refactored our code in a more object-oriented way.
@@ -109,7 +109,7 @@ Round 1 was on probability distribution and optimization, we misunderstood the p
 Round 2 was about triangular arbitrage given the transition rate matrix. We used brute-force algorithm considering small size of the matrix.
 
 ### Round 3: Basket Arbitrage Trading
-- 'GIFT_BASKET' is an index basket equivalent of following constituents together: 4 `CHOCOLATE`, 6 `STRAWBERRIES` and a `ROSES`.
+- `GIFT_BASKET` is an index basket equivalent of following constituents together: 4 `CHOCOLATE`, 6 `STRAWBERRIES` and a `ROSES`.
 - We found out that the basket always traded over premium over NAV made of basket constituents. We calculated z-score of the basket-NAV spread.
 - We tried stat arb between basket and constituent with z-score, but was not sucessful when we were only market taking.
 - Basket had big spread and constituents had small spreads, so we decided to only market make basket with pricing using constituents.
@@ -125,29 +125,10 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
 **Manual Trading Challege**  
 Round 3 was about game theory, where we choose few grid from a map to search for treasure. Expedition, maximum of 3, have huge marginal cost, and we will share the pie of the treasure we found on the grid with other participants. We tried to avoid crowding in most attractive options, and took one good but not best, and two so so options.
 
-### Round 4:  Call Option Trading (hedging delta and exposing to vega)
+### Round 4: Option Trading
 
-Round 4 was domain of call option trading, leveraging financial instruments disguised as "COCONUT" and "COCONUT_COUPON." Our strategy pivoted around a detailed application of the Black-Scholes-Merton model and focused on managing the option's Greeks, particularly delta and vega.
-
-Delta Neutral Strategy: Aimed to maintain a delta-neutral position to hedge against price movements in the underlying asset, thereby primarily exposing our position to changes in volatility (vega).
-Implied Volatility Tracking: Used a rolling z-score of implied volatility (IV) to gauge the overbought or oversold states of the options. This metric helped identify mean-reversion opportunities in the options market.
-Mean-Reversion Based on IV: If the IV z-score crossed predefined thresholds, we implemented a pyramid-style trading strategy to exploit these IV extremes.
-Dynamic Delta Hedging: Adjusted our positions in real-time to neutralize the delta, ensuring that our exposure to price movements was minimized while maintaining our positions to benefit from spikes in volatility.
-Technical Implementation
-Calculating Implied Volatility: We computed the IV using the BSM formula adapted for zero interest rates. This computation took into account the current market prices of the underlying asset and the option itself.
-Z-Score for IV: A rolling calculation of the z-score for IV was implemented to dynamically assess the trading environment and adjust strategies accordingly.
-Order Management: Orders were dynamically managed based on the IV's z-score and delta adjustments, allowing us to react promptly to market conditions.
-Logging and Adjustments: Throughout the trading period, adjustments were logged meticulously to ensure transparency and enable post-analysis of the strategy's effectiveness.
-Challenges and Adjustments
-Market Sensitivity: The strategy required constant adjustment to the sensitivity parameters for the IV z-score to optimize the trading responses.
-Technical Implementations: Due to the complexity of the calculations, particularly those involving the BSM derivatives and the dynamic hedging components, significant effort was put into ensuring that the computational overhead did not hinder real-time trading responses.
 
 ### Round 5: Multi-agent
-
-- In this round, the information and characteristics of the orderer are provided (i.e. multi-agent round) `<br>`
-- At this time, the use of the concept of "Market Microstructure". `<br>`
-- Traditional economic theory that prices are continuous and found? Wrong `<br>`
-- Prices are discontinuous and formed by market participants `<br>`
 
 Due to delay of competition, All of us were so busy with our mid-term that we couldn't participate in round 5.
 So we just modified some codes in previous round and submitted.
