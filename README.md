@@ -96,6 +96,8 @@ We spent most of our time in tutorial understanding the mechanics of competition
 **Manual Trading Challege**  
 Round 1 was on probability distribution and optimization, we misunderstood the problem missing the answer very badly. We had to bid to maximize our profit give the probability distribution of reserve price which basically is the willingness to sell at our bid. The size of potential from manual trading was way bigger than that of algorithmic trading, so we had a slow start and a long ladder to climb up.
 
+<img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R1_PnL.png?raw=True" width="50%" height="50%">
+
 ### Round 2: OTC Trading
 - The largest challenge for us and the entire community was to comprehend the intentionally vague specification of the product `ORCHIDS` from [Prosperity Wiki](https://imc-prosperity.notion.site/Round-2-accf8ab79fdf4ce5a558e49ecf83b122) and [Prosperity TV](https://www.youtube.com/watch?v=k4mV5XZZM-I).
 - Price of `ORCHIDS`, according to wiki and TV, is affected by sunlight and humidity. However, the provided data had low explanatory power with unknown units making it even harder to understand. We tried analytical (building a function) and statistical (linear regression with 2 predictor, linear regression on the residual, etc.) methods which all turned out to be unsuccessful.
@@ -107,6 +109,8 @@ Round 1 was on probability distribution and optimization, we misunderstood the p
 
 **Manual Trading Challege**  
 Round 2 was about triangular arbitrage given the transition rate matrix. We used brute-force algorithm considering small size of the matrix.
+
+<img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R2_PnL.png?raw=True" width="50%" height="50%">
 
 ### Round 3: Basket Arbitrage Trading
 - `GIFT_BASKET` is an index basket equivalent of following constituents together: 4 `CHOCOLATE`, 6 `STRAWBERRIES` and a `ROSES`.
@@ -125,6 +129,8 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
 **Manual Trading Challege**  
 Round 3 was about game theory, where we choose few grid from a map to search for treasure. Expedition, maximum of 3, have huge marginal cost, and we will share the pie of the treasure we found on the grid with other participants. We tried to avoid crowding in most attractive options, and took one good but not best, and two so so options.
 
+<img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R3_PnL.png?raw=True" width="50%" height="50%">
+
 ### Round 4: Option Trading
 - `COCONUT` is an underlying asset and `COCONUT_COUPON` is an European call option with strike price of 10000 and time to maturity 250 days(rounds).
 - Using our basic knowledge to option greeks, pricing of long-term options are mostly affected by change in volatility (besides the obvious change in underlying price).
@@ -135,6 +141,8 @@ Round 3 was about game theory, where we choose few grid from a map to search for
 
 **Manual Trading Challege**  
 Round 4 is similar to Round 1, but some game theory added. The probability distribution of willingness to buy is a function of average bids of all the participants. We took a conservative approach and didn't go too far away from the best answer.
+
+<img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R4_PnL.png?raw=True" width="50%" height="50%">
 
 ### Round 5: De-anonymized Trade Data
 - No new product was introduced in Round 5, but now name of the trader (both buyer and seleer) for market trades and own trades are visible.
@@ -151,6 +159,8 @@ Round 4 is similar to Round 1, but some game theory added. The probability distr
 
 **Manual Trading Challege**  
 Round 5 is news trading. Based on the most credible news source from north archipelago "Iceberg" (not Bloomberg), we have to allocate long and short position to tradable goods with gross position limit of 100%. We tried to take position on all products in order to reduce impact of few wrong answers. We got 5 correct 4 worng trades, but the profit from a single correct trade was able to offset all the losses from wrong trades.
+
+<img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R5_PnL.png?raw=True" width="50%" height="50%">
 
 ---
 
