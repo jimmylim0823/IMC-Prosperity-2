@@ -3,10 +3,10 @@
 
 ## What is IMC Prosperity?
 - Prosperity is 17-day long algorithmic & manual trading competition hosted by IMC Trading.
-- The virtual market is an utopian archipelago where currency is SeaShells and products are Strawberries, etc.
-- For algorithmic trading challenge, python file will be submitted to trade against other bots on limit order book.
-- This year's theme included market making, OTC trading, basket trading and options trading, deanonymized trades.
-- For manual trading challenge, puzzle on trading decision is given with some connection to math and game theory.
+- The virtual market is an archipelago where currency is SeaShells and products are Strawberries, etc.
+- For algorithmic trading, python file will be submitted to trade against bots on limit order book.
+- This year's theme included market making, OTC trading, basket trading and options trading.
+- For manual trading, puzzle on trading decision related to math and game theory is given.
 
 ## Major Reference Links
 - [IMC Prosperity](https://prosperity.imc.com)
