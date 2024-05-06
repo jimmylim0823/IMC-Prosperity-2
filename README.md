@@ -37,8 +37,8 @@
 ---
 
 ## Team Y-FoRM
-We are undergraduate students from Yonsei University, with 2 industrial engineering major and 1 economics major.  
-Also as the name of our team suggests, we are members of financial engineering and risk management club [Y-FoRM](https://yform.co.kr/).
+We are undergraduate students from Yonsei University, 2 industrial eng. major and 1 econ major.  
+Also as the name of our team suggests, we are members of financial eng. and risk mgt. club [Y-FoRM](https://yform.co.kr/).
 
 - Ji Seob Lim [LinkedIn](https://www.linkedin.com/in/jimmylim0823/)
 - Seong Yun Cho [LinkedIn](https://www.linkedin.com/in/seongyun0727/)
@@ -51,7 +51,7 @@ Also as the name of our team suggests, we are members of financial engineering a
 ### Some common consideration for all rounds
 - Though we have an order book, it operates by turn (think of board games) rather than simultaneously.
 - Orders are cancelled at every point in time, so re-processed to next timestamp.
-- All products have different position limit, and position limit, trading volume and notional value decideds target PnL.
+- All products have distinct position limit, and with trading volume and notional value potential PnL is decided.
 - If we the order potentially hits the positon limit, order will be canceled, so we should cap our order sizes properly.
 - Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue. (At most, linear/logistic regression)
 - AWS does not guarantee class variables to be stored, but we can pass serialized data across timestamps thourgh `traderData`. 
