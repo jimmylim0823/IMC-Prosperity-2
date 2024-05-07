@@ -53,10 +53,10 @@ Also as the name of our team suggests, we are members of financial eng. and risk
 - Orders are cancelled at every point in time, so re-processed to next timestamp.
 - All products have distinct position limit, and with volume and notional value potential PnL is decided.
 - If the order potentially hits the positon limit, order will be canceled, so we should cap our order sizes.
-- Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue. (At most, linear/logistic regression)
-- AWS does not guarantee class variables to be stored, but we can pass serialized data across timestamps thourgh `traderData`. 
-- If Prosperity server goes down for a long enough period (happend twice), they might give additional 24hours for the round.
-- The products in previous round will stay in the market, but marke regime may change. Continous tweaking of model is needed.
+- Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue.
+- In AWS Class variables may be lost, but we can pass serialized data across timestamps through `traderData`. 
+- If Prosperity server goes down (happend twice), they might give additional 24hours for the round.
+- The products in previous rounds will stay in the market, but marke regime may change.
 
 
 ### Tutorial Round
