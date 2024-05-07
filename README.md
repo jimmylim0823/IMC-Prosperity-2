@@ -150,11 +150,11 @@ Round 4 is similar to Round 1, but some game theory added. The probability distr
   - Trader starting with A (stands for Amatuer?) was really bad, market taking, always trading the opposite way.
   - Trader starting with R (stands for Rookie?) was also bad, market taking, often trading the opposite way.
   - Trader starting with V (stands for Veteran?) was good, market making, mostly high frequency.
-- We checked for their direction and size of the trade, and we found there tend to be some relationship with future price movement.
-- P-value for linear regression of trade quantity to PnL was very good, but the R-squared values were not promising.
+- We found relatinship between (signed) size of the trade and with future price movement.
+- Linear regression of trade quantity to PnL had good P-value but bad R-squared values.
 - We decided to aggregate the signal by multiplying the regression coefficient with R-squared value, so the signal for predicting return is scaled by model fit.
-- Good P-values were only found for Round 1 products, while other products had poor model fit with unsignificant coefficients.
-- Trader data based signal was only applied to `AMETHYSTS` and `STARFRUIT`, but extra information gain in PnL was small as a result.
+- Good P-values were only found for Round 1 products, while other products had poor model fit.
+- Trader based signal was only applied to `AMETHYSTS` and `STARFRUIT`, but extra profit was small.
 
 **Manual Trading Challege**  
 Round 5 is news trading. Based on the most credible news source from north archipelago "Iceberg" (not Bloomberg), we have to allocate long and short position to tradable goods with gross position limit of 100%. We tried to take position on all products in order to reduce impact of few wrong answers. We got 5 correct 4 worng trades, but the profit from a single correct trade was able to offset all the losses from wrong trades.
