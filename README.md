@@ -47,9 +47,9 @@ Also as the name of our team suggests, we are members of financial eng. and risk
 ---
 
 ## Round Summaries
-1. [Some common consideration for all rounds](#Some-common-consideration-for-all-rounds)
-1. Tutorial Round: Market Making
-1. Round 1: Market Making (Continued)
+1. [Common Consideration](#Some-common-consideration-for-all-rounds)
+1. [Tutorial Round: Market Making](#Tutorial-Round:-Market-Making)
+1. [Round 1: Market Making (Continued)](Round-1:-Market-Making-(Continued))
 1. 
 1. 
 
