@@ -58,9 +58,8 @@ Also as the name of our team suggests, we are members of financial eng. and risk
 - If Prosperity server goes down (happend twice), they might give additional 24hours for the round.
 - The products in previous rounds will stay in the market, but marke regime may change.
 
-
 ### Tutorial Round
-We spent most of our time in tutorial understanding the mechanics of competition and structure of [algorithmic trading codes](https://imc-prosperity.notion.site/Writing-an-Algorithm-in-Python-658e233a26e24510bfccf0b1df647858). In the end, we decided to market make and take around the fair value, with stop loss considering the position limit.
+We spent most of our time in tutorial understanding the mechanics and structure of [trading codes](https://imc-prosperity.notion.site/Writing-an-Algorithm-in-Python-658e233a26e24510bfccf0b1df647858). In the end, we decided to market make and take around the fair value, with stop loss considering the position limit.
 
 **Some Observations**
 - For both products, the order book mainly had two agents:
