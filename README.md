@@ -58,7 +58,7 @@ Also as the name of our team suggests, we are members of financial eng. and risk
 - If Prosperity server goes down (happend twice), they might give additional 24hours for the round.
 - The products in previous rounds will stay in the market, but marke regime may change.
 
-### Tutorial Round
+### Tutorial Round: Market Making
 We spent most of our time in tutorial understanding the mechanics and structure of [trading codes](https://imc-prosperity.notion.site/Writing-an-Algorithm-in-Python-658e233a26e24510bfccf0b1df647858). In the end, we decided to market make and take around the fair value, with stop loss considering the position limit.
 
 **Some Observations**
@@ -85,7 +85,7 @@ We spent most of our time in tutorial understanding the mechanics and structure 
 - Utilizing [SOBI](https://www.cis.upenn.edu/~mkearns/projects/sobi.html), we stored mid-vwap of order book rather than mid-price into a queue for data to regress.
 - We examined various rolling window size to predict its fair value using heatmap.
 
-### Round 1: Market Making
+### Round 1: Market Making (Continued)
 - Round1 was tutorial continued and we made some market. We focused on optimizing the strategy with some data analytics. We also refactored our code in a more object-oriented way.
 - We have `Strategy` class which is the base class for each product. Product configuration, order book features and variables related to our orders (submission, expected position, sum of buys and sells) is defined as instance variable of the class, and will be defined for each product.  
 - `MarketMaking` class inherits `Strategy` with its instance variables and extra strategy configurations. We have `scratch_under_valued`, `stop_loss`, `market_make` method that implements the general market making logic above. Then `aggregate_orders` method calls all 3 order-generating methods and returns list of orders, which will be the input for `results[product]` in the `run` method of `Trader` class submitting the orders to the Prosperity system. Orders for `AMETHYSTS` is generaged by `MarketMaking` class in the `run` method.
@@ -95,7 +95,7 @@ We spent most of our time in tutorial understanding the mechanics and structure 
 **Manual Trading Challege**  
 Round 1 was on probability distribution and optimization, we misunderstood the problem missing the answer very badly. We had to bid to maximize our profit give the probability distribution of reserve price which basically is the willingness to sell at our bid. The size of potential from manual trading was way bigger than that of algorithmic trading, so we had a slow start and a long ladder to climb up.
 
-<img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R1_PnL.png?raw=True" width="50%" height="50%">
+<div align=center><img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R1_PnL.png?raw=True" width="50%" height="50%"><div align=center>
 
 ### Round 2: OTC Trading
 - The largest challenge for us and the entire community was to comprehend the intentionally vague specification of the product `ORCHIDS` from [Prosperity Wiki](https://imc-prosperity.notion.site/Round-2-accf8ab79fdf4ce5a558e49ecf83b122) and [Prosperity TV](https://www.youtube.com/watch?v=k4mV5XZZM-I).
