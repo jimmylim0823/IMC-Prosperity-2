@@ -119,7 +119,7 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
 - We shifted are fair value from mid-vwap of basket by adding `pricindg_shift = -demeaned_premium * scaling coefficient` where are pricing bias scaling coefficient uses quadratic sensitivity to spread z-score: `scaling_coefficient = self.alpha * abs(self.z_score) + self.beta * self.z_score ** 2`. This dynamic scaling will make `pricing_shift` approach 0 when z-score is close to 0 and give spike to the signal when z-score deviates significantly from the mean 0, when we have low alpha and high enough beta.
 - Mechanics of `aggregate_basket_orders` work similary to market making. `BasketTrading` class will generate orders for only `GIFT_BASKET`.
 1. Type of `self.basket` will be `Strategy` and type of `self.constituent` will be `Dict[Symbol: Strategy]`.
-1. `calculate_fair_value` calculates fair value of basket using basket mid-vwap, demeaned premium and spread z-score.
+1. `calculate_fair_value` calculates FV of basket using mid-vwap, demeaned premium and spread z-score.
 1. Simmilar to Round 2, scratch, stop loss and market make basket. However, there are two difference:
    - `scratch_under_valued(mid_vwap=True)`: Scratch under/par-valued based on mid-vwap not fair value (as we already updated our fair value)
    - `aggresive_stop_loss`: Take max quantity from worst bid/ask for stop loss when inventory touched stop loss inventory level
