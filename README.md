@@ -113,7 +113,7 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
 
 ### Round 3: Basket Arbitrage Trading
 - `GIFT_BASKET` is an index basket equivalent of: 4 `CHOCOLATE`, 6 `STRAWBERRIES` and a `ROSES`.
-- The basket always traded premium over NAV of constituents and we calculated z-score of the basket-NAV spread.
+- The basket always traded premium over NAV and we calculated z-score of the basket-NAV spread.
 - We tried stat arb between basket and constituent with z-score, but was not sucessful only market taking.
 - Basket had big spread and constituents had small spreads, so we decided to only market make basket with pricing using constituents.
 - We shifted are fair value from mid-vwap of basket by adding `pricindg_shift = -demeaned_premium * scaling coefficient` where are pricing bias scaling coefficient uses quadratic sensitivity to spread z-score: `scaling_coefficient = self.alpha * abs(self.z_score) + self.beta * self.z_score ** 2`. This dynamic scaling will make `pricing_shift` approach 0 when z-score is close to 0 and give spike to the signal when z-score deviates significantly from the mean 0, when we have low alpha and high enough beta.
