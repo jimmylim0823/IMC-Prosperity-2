@@ -50,9 +50,9 @@ Also as the name of our team suggests, we are members of financial eng. and risk
 1. [Common Consideration](#Some-common-consideration-for-all-rounds)
 1. [Tutorial Round: Market Making](#Tutorial-Round-Market-Making)
 1. [Round 1: Market Making (Continued)](#Round-1-Market-Making-Continued)
-1. [Round 2: OTC Trading](#Round-2-OTC-Trading)
-1. [Round 3: Basket Trading](#Round-3-Basket-Trading)
-1. [Round 4: Option Trading](#Round-4-Option-Trading)
+1. [Round 2: OTC Trading (Exchange-OTC Arbitrage)](#Round-2-OTC-Trading-Exchange-OTC-Arbitrage)
+1. [Round 3: Basket Trading (NAV Trading)](#Round-3-Basket-Trading-NAV-Trading)
+1. [Round 4: Option Trading (Vega Trading)](#Round-4-Option-Trading-Vega-Trading)
 1. [Round 5: De-anonymized Trade Data](#Round-5-De-Anonymized-Trade-Data)
 
 ### Some common consideration for all rounds
@@ -104,7 +104,7 @@ Round 1 was on probability distribution and optimization, we misunderstood the p
 
 <div align=center><img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R1_PnL.png?raw=True" width="50%" height="50%"> </div>
 
-### Round 2: OTC Trading
+### Round 2: OTC Trading (Exchange-OTC Arbitrage)
 - The largest challenge for us and the entire community was to comprehend the intentionally vague specification of the product `ORCHIDS` from [Prosperity Wiki](https://imc-prosperity.notion.site/Round-2-accf8ab79fdf4ce5a558e49ecf83b122) and [Prosperity TV](https://www.youtube.com/watch?v=k4mV5XZZM-I).
 - Price of `ORCHIDS`, according to wiki and TV, is affected by sunlight and humidity. However, the provided data had low explanatory power with unknown units making it even harder to understand. We tried analytical (building a function) and statistical (linear regression with 2 predictor, linear regression on the residual, etc.) methods which all turned out to be unsuccessful.
 - Instead, we turned our focus on arbitrage opportunity between our exchange and another OTC trading venue in the South. We could convert (close position) orchids that we got from our exchange (both long and short) to Seashells in the South. The OTC market have an independent bid and ask, while it is a quote-driven market and will receive conversion of any size, for price of paying transportation fee + import/export tariff. As this is some sort of a single-dealer platform, we had infinite liquidity to close our position immediately, so we would make or take from exchange and close at OTC. `OTCArbitrage` class includes following methods:
@@ -118,7 +118,7 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
 
 <div align=center><img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R2_PnL.png?raw=True" width="50%" height="50%"></div>
 
-### Round 3: Basket Trading
+### Round 3: Basket Trading (NAV Trading)
 - `GIFT_BASKET` is an index basket equivalent of: 4 `CHOCOLATE`, 6 `STRAWBERRIES` and a `ROSES`.
 - The basket always traded premium over NAV and we calculated z-score of the basket-NAV spread.
 - We tried stat arb between basket and constituent with z-score, but was not sucessful only market taking.
@@ -137,7 +137,7 @@ Round 3 was about game theory, where we choose few grid from a map to search for
 
 <div align=center><img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R3_PnL.png?raw=True" width="50%" height="50%"> </div>
 
-### Round 4: Option Trading
+### Round 4: Option Trading (Vega Trading)
 - `COCONUT` is an underlying asset and `COCONUT_COUPON` is an European call option with strike price of 10000 and time to maturity 250 days(rounds).
 - Using our basic knowledge to option greeks, pricing of long-term options are mostly affected by change in volatility (besides the obvious change in underlying price).
 - Considering limitation of computing power, we used analytic estimator from [Hallerbach (2004)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=567721) to calculate implied volatility. We found out that IV is highly mean-reverting intraday, so we decided to profit from vega trading based on rolling z-score of IV.
