@@ -70,13 +70,13 @@ We spent most of our time in tutorial understanding the mechanics and structure 
     - We could further reduce the size of order in disadvantageous side to protect ourself from the trend.
 
 **General Market Making Logic**
-1. Update the fair value of product
+1. Update the fair value (FV) of product
 1. Scratch by market taking for under or par valued orders (but not against worst bid/ask)
 1. Stop loss if inventory piles over certain level (but not against worst bid/ask)
-1. Market make around the fair value with maximum possible amount deducted by skew of order size determined by inventory
+1. Market make around the FV with max amount deducted by skew of order size determined by inventory
 
 **Amethesis**
-- The fair value is clearly 10k and the mid-price is very stable (10k +- 2), so we used fixed FV of 10k.
+- The FV is clearly 10k and the mid-price is very stable (10k +- 2), so we used fixed FV of 10k.
 - Apply the market making logic above directly as there is no need for update of fair value.
 
 **Starfruit**
