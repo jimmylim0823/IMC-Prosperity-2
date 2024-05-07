@@ -51,8 +51,8 @@ Also as the name of our team suggests, we are members of financial eng. and risk
 ### Some common consideration for all rounds
 - Though we have an order book, it operates by turn (think of board games) rather than simultaneously.
 - Orders are cancelled at every point in time, so re-processed to next timestamp.
-- All products have distinct position limit, and with trading volume and notional value potential PnL is decided.
-- If we the order potentially hits the positon limit, order will be canceled, so we should cap our order sizes properly.
+- All products have distinct position limit, and with volume and notional value potential PnL is decided.
+- If the order potentially hits the positon limit, order will be canceled, so we should cap our order sizes.
 - Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue. (At most, linear/logistic regression)
 - AWS does not guarantee class variables to be stored, but we can pass serialized data across timestamps thourgh `traderData`. 
 - If Prosperity server goes down for a long enough period (happend twice), they might give additional 24hours for the round.
