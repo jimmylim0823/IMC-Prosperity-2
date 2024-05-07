@@ -77,7 +77,7 @@ We spent most of our time in tutorial understanding the mechanics of competition
 1. Market make around the fair value with maximum possible amount deducted by skew of order size determined by inventory
 
 **Amethesis**
-- The fair value is clearly 10000 and the mid-price is very stable (10000 +- 2), so we used fixed fair value of 10000.
+- The fair value is clearly 10k and the mid-price is very stable (100k +- 2), so we used fixed fair value of 100k.
 - Apply the market making logic above directly as there is no need for update of fair value.
 
 **Starfruit**
