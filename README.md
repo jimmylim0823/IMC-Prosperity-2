@@ -122,7 +122,7 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
 1. `calculate_fair_value` calculates FV of basket using mid-vwap, demeaned premium and spread z-score.
 1. Simmilar to Round 2, scratch, stop loss and market make basket. However, there are two difference:
    - `scratch_under_valued(mid_vwap=True)`: Scratch under/par-valued based on mid-vwap not fair value (as we already updated our fair value)
-   - `aggresive_stop_loss`: Take max quantity from worst bid/ask for stop loss when inventory touched stop loss inventory level
+   - `aggresive_stop_loss`: Take max quantity from worst bid/ask for stop loss at stop loss inventory level
 - We had acceptable and steady profit for basket throughout competition. Nevertheless, we should have tried trading some constituents, even if market making was impossible due to small (0 or 1) spread.
 
 **Manual Trading Challege**  
