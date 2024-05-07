@@ -48,15 +48,12 @@ Also as the name of our team suggests, we are members of financial eng. and risk
 
 ## Round Summaries
 1. [Common Consideration](#Some-common-consideration-for-all-rounds)
-1. [Tutorial Round: Market Making](#Tutorial-Round:-Market-Making)
-1. [Round 1: Market Making (Continued)](Round-1:-Market-Making-(Continued))
-1. 
-1. 
-
-
-
-
-
+1. [Tutorial Round: Market Making](#Tutorial-Round-Market-Making)
+1. [Round 1: Market Making (Continued)](#Round-1-Market-Making-Continued)
+1. [Round 2: OTC Trading](#Round-2-OTC-Trading)
+1. [Round 3: Basket Trading](#Round-3-Basket-Trading)
+1. [Round 4: Option Trading](#Round-4-Option-Trading)
+1. [Round 5: De-anonymized Trade Data](#Round-5-De-Anonymized-Trade-Data)
 
 ### Some common consideration for all rounds
 - Though we have an order book, it operates by turn (think of board games) rather than simultaneously.
@@ -121,7 +118,7 @@ Round 2 was about triangular arbitrage given the transition rate matrix. We used
 
 <div align=center><img src = "https://raw.githubusercontent.com/jimmylim0823/IMC-Prosperity-2/master/img/R2_PnL.png?raw=True" width="50%" height="50%"></div>
 
-### Round 3: Basket Arbitrage Trading
+### Round 3: Basket Trading
 - `GIFT_BASKET` is an index basket equivalent of: 4 `CHOCOLATE`, 6 `STRAWBERRIES` and a `ROSES`.
 - The basket always traded premium over NAV and we calculated z-score of the basket-NAV spread.
 - We tried stat arb between basket and constituent with z-score, but was not sucessful only market taking.
