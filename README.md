@@ -63,7 +63,7 @@ We spent most of our time in tutorial understanding the mechanics and structure 
 
 **Some Observations**
 - For both products, the order book mainly had two agents:
-    - one very-passive market maker: large and symmetric order with price of +- 5 from mid-price (always worst bid/ask)
+    - one very-passive market maker: large and symmetric order +- 5 from mid-price (always worst)
     - one active trader (noise or informed): undercutting the +-5 orders with smaller and asymetric size
 - Position limit does do some work in inventory management against adverse selection
     - The maximum allowed order size of a side decreases as inventory piles up in such direction due to the trend.
