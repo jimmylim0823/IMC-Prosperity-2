@@ -60,37 +60,37 @@ Also as the name of our team suggests, we are members of financial eng. and risk
 - Orders are cancelled at every point in time, so re-processed to next timestamp.
 - All products have distinct position limit, and with volume and notional value potential PnL is decided.
 - If the order potentially hits the positon limit, order will be canceled, so we should cap our order sizes.
-- Scripts will run on AWS, and last year many team with complex algorithm had Lambda issue.
-- In AWS Class variables may be lost, but we can pass serialized data across timestamps through `traderData`. 
-- If Prosperity server goes down (happend twice), they might give additional 24hours for the round.
+- Scripts will run on AWS, and last year many teamS with complex algorithm had Lambda issue.
+- In AWS class variables may be lost, but we can pass serialized data across timestamps through `traderData`. 
+- If Prosperity server goes down (happend twice), they might give additional 24 hours for the round.
 - The products in previous rounds will stay in the market, but marke regime may change.
 
 ### Tutorial Round: Market Making
-We spent most of our time in tutorial understanding the mechanics and structure of [trading codes](https://imc-prosperity.notion.site/Writing-an-Algorithm-in-Python-658e233a26e24510bfccf0b1df647858). In the end, we decided to market make and take around the fair value, with stop loss considering the position limit.
+We spent most of our time in tutorial understanding the mechanics and structure of [trading code](https://imc-prosperity.notion.site/Writing-an-Algorithm-in-Python-658e233a26e24510bfccf0b1df647858). In the end, we decided to market make and take around the fair value with stop loss considering the position limit.
 
 **Some Observations**
 - For both products, the order book mainly had two agents:
     - one very-passive market maker: large and symmetric order +- 5 from mid-price (always worst)
     - one active trader (noise or informed): undercutting the +-5 orders with smaller and asymetric size
-- Position limit does do some work in inventory management against adverse selection
+- Position limit does some work in inventory management against adverse selection
     - The maximum allowed order size of a side decreases as inventory piles up in such direction due to the trend.
     - We could further reduce the size of order in disadvantageous side to protect ourself from the trend.
 
 **General Market Making Logic**
 1. Update the fair value (FV) of product
-1. Scratch by market taking for under or par valued orders (but not against worst bid/ask)
+1. Scratch by market taking under or par valued orders (but not against worst bid/ask)
 1. Stop loss if inventory piles over certain level (but not against worst bid/ask)
-1. Market make around the FV with max amount deducted by skew of order size determined by inventory
+1. Market make around FV with max amount deducted by skew of order size determined by inventory
 
 **Amethesis**
 - The FV is clearly 10k and the mid-price is very stable (10k +- 2), so we used fixed FV of 10k.
-- Apply the market making logic above directly as there is no need for update of fair value.
+- Apply the market making logic above directly as there is no need for update of FV.
 
 **Starfruit**
 - Prices have trends (strong drift) and the trend may invert during the day.
 - We used rolling linear regression $P_t=\beta_0+\beta_1 t$ to predict the price of next timestamp $\hat{P_{t+1}}=\hat{\beta_0}+\hat{\beta_0}(t+1)$.
-- Utilizing [SOBI](https://www.cis.upenn.edu/~mkearns/projects/sobi.html), we stored mid-vwap of order book rather than mid-price into a queue for data to regress.
-- We examined various rolling window size to predict its fair value using heatmap.
+- Utilizing [SOBI (Static Order Book Imbalance)](https://www.cis.upenn.edu/~mkearns/projects/sobi.html), we stored mid-vwap of order book rather than mid-price into a queue for data to regress. This will denoise mid-price when there is bias due to small best bid/ask far away from worst bid/ask.
+- We examined various rolling window size using heatmap to find optimal window for prediction.
 
 ### Round 1: Market Making (Continued)
 - Round1 was tutorial continued and we made some market. We focused on optimizing the strategy with some data analytics. We also refactored our code in a more object-oriented way.
