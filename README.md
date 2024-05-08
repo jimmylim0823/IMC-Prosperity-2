@@ -89,7 +89,7 @@ We spent most of our time in tutorial understanding the mechanics and structure 
 **Starfruit**
 - Prices have trends (strong drift) and the trend may invert during the day.
 - We used rolling linear regression $P_t=\beta_0+\beta_1 t$ to predict the price of next timestamp $\hat{P_{t+1}}=\hat{\beta_0}+\hat{\beta_0}(t+1)$.
-- Utilizing [SOBI (Static Order Book Imbalance)](https://www.cis.upenn.edu/~mkearns/projects/sobi.html), we stored mid-vwap of order book rather than mid-price into a queue for data to regress. This will denoise mid-price when there is bias due to small best bid/ask far away from worst bid/ask.
+- Utilizing [SOBI (Static Order Book Imbalance)](https://www.cis.upenn.edu/~mkearns/projects/sobi.html), we stored mid-vwap of order book rather than mid-price into a queue for data to regress. This will denoise mid-price when there is bias due to small best bid/ask.
 - We examined various rolling window size using heatmap to find optimal window for prediction.
 
 ### Round 1: Market Making (Continued)
