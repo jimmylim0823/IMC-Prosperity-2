@@ -1,5 +1,5 @@
 # IMC-Prosperity-2024, Y-FoRM
-[Link to Korean Version]()
+[Link to Korean Version](https://github.com/yooonyy/IMC_prosperity2/blob/main/READMEKOR.md)
 
 ## What is IMC Prosperity?
 - Prosperity is 17-day long algorithmic & manual trading competition hosted by IMC Trading.
